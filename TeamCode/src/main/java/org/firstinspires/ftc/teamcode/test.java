@@ -1,4 +1,4 @@
-/* Copyright (c) 2017 FIRST. All rights reserved.
+package org.firstinspires.ftc.teamcode;/* Copyright (c) 2025 FIRST. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted (subject to the limitations in the disclaimer below) provided that
@@ -27,88 +27,156 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.firstinspires.ftc.teamcode;
 
+import com.acmerobotics.roadrunner.Pose2d;
+import com.acmerobotics.roadrunner.PoseVelocity2d;
+import com.acmerobotics.roadrunner.Vector2d;
+import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.util.ElapsedTime;
-import com.qualcomm.robotcore.util.Range;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.IMU;
 
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.teamcode.MecanumDrive;
 
 /*
- * This file contains an minimal example of a Linear "OpMode". An OpMode is a 'program' that runs in either
- * the autonomous or the teleop period of an FTC match. The names of OpModes appear on the menu
- * of the FTC Driver Station. When a selection is made from the menu, the corresponding OpMode
- * class is instantiated on the Robot Controller and executed.
+ * This OpMode illustrates how to program your robot to drive field relative.  This means
+ * that the robot drives the direction you push the joystick regardless of the current orientation
+ * of the robot.
  *
- * This particular OpMode just executes a basic Tank Drive Teleop for a two wheeled robot
- * It includes all the skeletal structure that all linear OpModes contain.
+ * This OpMode assumes that you have four mecanum wheels each on its own motor named:
+ *   front_left_motor, front_right_motor, back_left_motor, back_right_motor
+ *
+ *   and that the left motors are flipped such that when they turn clockwise the wheel moves backwards
  *
  * Use Android Studio to Copy this Class, and Paste it into your team's code folder with a new name.
  * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list
+ *
  */
+@TeleOp(name = "Basic Movement Test", group = "Robot")
 
-@TeleOp(name="test", group="Linear OpMode")
-public class test extends LinearOpMode {
+public class test extends OpMode {
+    // This declares the four motors needed
+    DcMotor frontLeftDrive;
+    DcMotor frontRightDrive;
+    DcMotor backLeftDrive;
+    DcMotor backRightDrive;
+    DcMotor launcher1;
+    DcMotor launcher2;
+    MecanumDrive drive;
 
-    // Declare OpMode members.
-    private ElapsedTime runtime = new ElapsedTime();
-    private DcMotor leftDrive = null;
-    private DcMotor rightDrive = null;
+    // This declares the IMU needed to get the current direction the robot is facing
+    IMU imu;
 
     @Override
-    public void runOpMode() {
-        telemetry.addData("Status", "Initialized");
-        telemetry.update();
+    public void init() {
+        frontLeftDrive = hardwareMap.get(DcMotor.class, "fldrive");
+        frontRightDrive = hardwareMap.get(DcMotor.class, "frdrive");
+        backLeftDrive = hardwareMap.get(DcMotor.class, "bldrive");
+        backRightDrive = hardwareMap.get(DcMotor.class, "brdrive");
+        drive = new MecanumDrive(hardwareMap, new Pose2d(0, 0, 0));
 
-        // Initialize the hardware variables. Note that the strings used here as parameters
-        // to 'get' must correspond to the names assigned during the robot configuration
-        // step (using the FTC Robot Controller app on the phone).
-        leftDrive  = hardwareMap.get(DcMotor.class, "left_drive");
-        rightDrive = hardwareMap.get(DcMotor.class, "right_drive");
+        launcher1 = hardwareMap.get(DcMotor.class, "launch1");
+        launcher2 = hardwareMap.get(DcMotor.class, "launch2");
+        // We set the left motors in reverse which is needed for drive trains where the left
+        // motors are opposite to the right ones.
+        //backLeftDrive.setDirection(DcMotor.Direction.REVERSE);
+        //frontLeftDrive.setDirection(DcMotor.Direction.REVERSE);
 
-        // To drive forward, most robots need the motor on one side to be reversed, because the axles point in opposite directions.
-        // Pushing the left stick forward MUST make robot go forward. So adjust these two lines based on your first test drive.
-        // Note: The settings here assume direct drive on left and right wheels.  Gear Reduction or 90 Deg drives may require direction flips
-        leftDrive.setDirection(DcMotor.Direction.REVERSE);
-        rightDrive.setDirection(DcMotor.Direction.FORWARD);
+        // This uses RUN_USING_ENCODER to be more accurate.   If you don't have the encoder
+        // wires, you should remove these
+        /*frontLeftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        frontRightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        backLeftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        backRightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER); */
 
-        // Wait for the game to start (driver presses START)
-        waitForStart();
-        runtime.reset();
+        imu = hardwareMap.get(IMU.class, "imu");
+        // This needs to be changed to match the orientation on your robot
+        RevHubOrientationOnRobot.LogoFacingDirection logoDirection =
+                RevHubOrientationOnRobot.LogoFacingDirection.UP;
+        RevHubOrientationOnRobot.UsbFacingDirection usbDirection =
+                RevHubOrientationOnRobot.UsbFacingDirection.FORWARD;
 
-        // run until the end of the match (driver presses STOP)
-        while (opModeIsActive()) {
-
-            // Setup a variable for each drive wheel to save power level for telemetry
-            double leftPower;
-            double rightPower;
-
-            // Choose to drive using either Tank Mode, or POV Mode
-            // Comment out the method that's not used.  The default below is POV.
-
-            // POV Mode uses left stick to go forward, and right stick to turn.
-            // - This uses basic math to combine motions and is easier to drive straight.
-            double drive = -gamepad1.left_stick_y;
-            double turn  =  gamepad1.right_stick_x;
-            leftPower    = Range.clip(drive + turn, -1.0, 1.0) ;
-            rightPower   = Range.clip(drive - turn, -1.0, 1.0) ;
-
-            // Tank Mode uses one stick to control each wheel.
-            // - This requires no math, but it is hard to drive forward slowly and keep straight.
-            // leftPower  = -gamepad1.left_stick_y ;
-            // rightPower = -gamepad1.right_stick_y ;
-
-            // Send calculated power to wheels
-            leftDrive.setPower(leftPower);
-            rightDrive.setPower(rightPower);
-
-            // Show the elapsed game time and wheel power.
-            telemetry.addData("Status", "Run Time: " + runtime.toString());
-            telemetry.addData("Motors", "left (%.2f), right (%.2f)", leftPower, rightPower);
-            telemetry.update();
-        }
+        RevHubOrientationOnRobot orientationOnRobot = new
+                RevHubOrientationOnRobot(logoDirection, usbDirection);
+        imu.initialize(new IMU.Parameters(orientationOnRobot));
     }
+
+    @Override
+    public void loop() {
+        telemetry.addLine("Press A to reset Yaw");
+        telemetry.addLine("Hold left bumper to drive in robot relative");
+        telemetry.addLine("The left joystick sets the robot direction");
+        telemetry.addLine("Moving the right joystick left and right turns the robot");
+
+        // If you press the A button, then you reset the Yaw to be zero from the way
+        // the robot is currently pointing
+        if (gamepad1.a) {
+            imu.resetYaw();
+        }
+        // If you press the left bumper, you get a drive from the point of view of the robot
+        // (much like driving an RC vehicle)
+        drive.setDrivePowers(new PoseVelocity2d(
+                new Vector2d(
+                        -gamepad1.left_stick_y,
+                        -gamepad1.left_stick_x
+                ),
+                -gamepad1.right_stick_x
+        ));
+       Double launchPow = (double) gamepad1.right_trigger;
+
+       launcher1.setPower(launchPow);
+       launcher2.setPower(launchPow);
+
+    }
+
+    // This routine drives the robot field relative
+    /*private void driveFieldRelative(double forward, double right, double rotate) {
+        // First, convert direction being asked to drive to polar coordinates
+        double theta = Math.atan2(forward, right);
+        double r = Math.hypot(right, forward);
+
+        // Second, rotate angle by the angle the robot is pointing
+        theta = AngleUnit.normalizeRadians(theta -
+                imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS));
+
+        // Third, convert back to cartesian
+        double newForward = r * Math.sin(theta);
+        double newRight = r * Math.cos(theta);
+
+        // Finally, call the drive method with robot relative forward and right amounts
+        drive(newForward, newRight, rotate);
+    }*/
+
+    // Thanks to FTC16072 for sharing this code!!
+   /* public void drive(double forward, double right, double rotate) {
+        // This calculates the power needed for each wheel based on the amount of forward,
+        // strafe right, and rotate
+        double frontLeftPower = forward + right + rotate;
+        double frontRightPower = forward - right - rotate;
+        double backRightPower = forward + right - rotate;
+        double backLeftPower = forward - right + rotate;
+
+        double maxPower = 1.0;
+        double maxSpeed = 1.0;  // make this slower for outreaches
+
+        // This is needed to make sure we don't pass > 1.0 to any wheel
+        // It allows us to keep all of the motors in proportion to what they should
+        // be and not get clipped
+        maxPower = Math.max(maxPower, Math.abs(frontLeftPower));
+        maxPower = Math.max(maxPower, Math.abs(frontRightPower));
+        maxPower = Math.max(maxPower, Math.abs(backRightPower));
+        maxPower = Math.max(maxPower, Math.abs(backLeftPower));
+
+        // We multiply by maxSpeed so that it can be set lower for outreaches
+        // When a young child is driving the robot, we may not want to allow full
+        // speed.
+        frontLeftDrive.setPower(maxSpeed * (frontLeftPower / maxPower));
+        frontRightDrive.setPower(maxSpeed * (frontRightPower / maxPower));
+        backLeftDrive.setPower(maxSpeed * (backLeftPower / maxPower));
+        backRightDrive.setPower(maxSpeed * (backRightPower / maxPower));
+    }*/
 }
