@@ -119,13 +119,17 @@ public class test extends OpMode {
         }
         // If you press the left bumper, you get a drive from the point of view of the robot
         // (much like driving an RC vehicle)
-        drive.setDrivePowers(new PoseVelocity2d(
-                new Vector2d(
-                        -gamepad1.left_stick_y,
-                        -gamepad1.left_stick_x
-                ),
-                -gamepad1.right_stick_x
-        ));
+        if (gamepad1.left_bumper) {
+            driveFieldRelative(gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
+        }else {
+            drive.setDrivePowers(new PoseVelocity2d(
+                    new Vector2d(
+                            -gamepad1.left_stick_y,
+                            -gamepad1.left_stick_x
+                    ),
+                    -gamepad1.right_stick_x
+            ));
+        }
        Double launchPow = (double) gamepad1.right_trigger;
 
        launcher1.setPower(launchPow);
@@ -134,7 +138,7 @@ public class test extends OpMode {
     }
 
     // This routine drives the robot field relative
-    /*private void driveFieldRelative(double forward, double right, double rotate) {
+    private void driveFieldRelative(double forward, double right, double rotate) {
         // First, convert direction being asked to drive to polar coordinates
         double theta = Math.atan2(forward, right);
         double r = Math.hypot(right, forward);
@@ -148,8 +152,13 @@ public class test extends OpMode {
         double newRight = r * Math.cos(theta);
 
         // Finally, call the drive method with robot relative forward and right amounts
-        drive(newForward, newRight, rotate);
-    }*/
+        drive.setDrivePowers(new PoseVelocity2d(
+                new Vector2d(
+                        -gamepad1.left_stick_y,
+                        -gamepad1.left_stick_x
+                ),
+                -gamepad1.right_stick_x
+        ));    }
 
     // Thanks to FTC16072 for sharing this code!!
    /* public void drive(double forward, double right, double rotate) {
