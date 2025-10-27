@@ -35,6 +35,7 @@ import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.IMU;
@@ -67,6 +68,7 @@ public class test extends OpMode {
     DcMotor launcher1;
     DcMotor launcher2;
     MecanumDrive drive;
+    CRServo launchFeed;
 
     // This declares the IMU needed to get the current direction the robot is facing
     IMU imu;
@@ -81,6 +83,9 @@ public class test extends OpMode {
 
         launcher1 = hardwareMap.get(DcMotor.class, "launch1");
         launcher2 = hardwareMap.get(DcMotor.class, "launch2");
+        launchFeed = hardwareMap.get(CRServo.class, "launchFeed");
+        launcher1.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        launcher2.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         // We set the left motors in reverse which is needed for drive trains where the left
         // motors are opposite to the right ones.
         //backLeftDrive.setDirection(DcMotor.Direction.REVERSE);
@@ -130,10 +135,20 @@ public class test extends OpMode {
                     -gamepad1.right_stick_x
             ));
         }
-       Double launchPow = (double) gamepad1.right_trigger;
+       Double launchPow;
+        if (gamepad1.right_trigger >= 0.1) {
+            launchPow = 1.0;
+        } else {
+            launchPow = 0.0;
+        }
+        launcher1.setPower(-launchPow);
+        launcher2.setPower(launchPow);
+        if (gamepad1.a) {
+            launchFeed.setPower(1);
+        } else {
+            launchFeed.setPower(0);
+        }
 
-       launcher1.setPower(launchPow);
-       launcher2.setPower(launchPow);
 
     }
 
