@@ -1,0 +1,49 @@
+package org.firstinspires.ftc.teamcode;
+
+import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.hardwareMap;
+
+import org.firstinspires.ftc.robotcore.external.hardware.camera.BuiltinCameraDirection;
+import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.vision.VisionPortal;
+import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
+import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
+
+import java.util.List;
+
+public class AprilTag {
+    private static final boolean USE_WEBCAM = true;
+
+    private AprilTagProcessor aprilTag;
+    private VisionPortal visionPortal;
+
+    public AprilTag(String deviceName) {
+        if (deviceName.isEmpty()) throw new RuntimeException("Must provide a device name (AprilTag)");
+        aprilTag = new AprilTagProcessor.Builder()
+                .setDrawAxes(true)
+                .setDrawCubeProjection(true)
+                .setDrawTagOutline(true)
+                .setOutputUnits(DistanceUnit.INCH, AngleUnit.DEGREES)
+                .build();
+
+        VisionPortal.Builder builder = new VisionPortal.Builder();
+        builder.setCamera(hardwareMap.get(WebcamName.class, deviceName));
+        builder.enableLiveView(true);
+        builder.setStreamFormat(VisionPortal.StreamFormat.YUY2);
+        builder.setAutoStopLiveView(true);
+        builder.addProcessor(aprilTag);
+
+        visionPortal = builder.build();
+        visionPortal.setProcessorEnabled(aprilTag, true);
+    }
+
+    public List<AprilTagDetection> getDetectedTags() {
+        return aprilTag.getDetections();
+    }
+
+    public void setDecimation(int decimation) {
+        if (decimation < 1 || decimation > 3) throw new RuntimeException("Decimation must be between 1 and 3");
+        aprilTag.setDecimation(decimation);
+    }
+}
