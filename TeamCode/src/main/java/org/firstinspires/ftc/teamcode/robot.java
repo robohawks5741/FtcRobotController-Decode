@@ -28,8 +28,11 @@ package org.firstinspires.ftc.teamcode;/* Copyright (c) 2025 FIRST. All rights r
  */
 
 
+import android.util.Range;
+
 import com.acmerobotics.roadrunner.Pose2d;
 import com.acmerobotics.roadrunner.PoseVelocity2d;
+import com.acmerobotics.roadrunner.Rotation2d;
 import com.acmerobotics.roadrunner.Vector2d;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
@@ -40,10 +43,17 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.IMU;
+import com.sun.tools.javac.comp.Todo;
+
 import org.firstinspires.ftc.teamcode.PID;
+import org.firstinspires.ftc.teamcode.AprilTag;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.teamcode.MecanumDrive;
+import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
+import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
+
+import java.util.List;
 
 /*
  * This OpMode illustrates how to program your robot to drive field relative.  This means
@@ -71,6 +81,11 @@ public class robot extends OpMode {
     DcMotor launcher2;
     MecanumDrive drive;
     CRServo launchFeed;
+    AprilTag aprilTag;
+    double targetX = 0;
+    double targetY = 0;
+    double targetTheta = 0;
+
 
     // This declares the IMU needed to get the current direction the robot is facing
     IMU imu;
@@ -93,6 +108,7 @@ public class robot extends OpMode {
         //backLeftDrive.setDirection(DcMotor.Direction.REVERSE);
         //frontLeftDrive.setDirection(DcMotor.Direction.REVERSE);
 
+       // Range<Double> xrange = Range.create(targetX-0.1, targetX+0.1);
         // This uses RUN_USING_ENCODER to be more accurate.   If you don't have the encoder
         // wires, you should remove these
         /*frontLeftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
@@ -120,17 +136,35 @@ public class robot extends OpMode {
         double y = 0;
         double theta = 0;
         return new Pose2d(x, y, theta);
-
-        aprilTag = new AprilTag("Webcam 1", hardwareMap);
     }
+    public void driveto(double x, double y, double theta) {
+        double dx = x - globalLoc().position.x;
+        double dy = y - globalLoc().position.y;
+        double dtheta = theta - globalLoc().heading.toDouble();
 
+    }
     @Override
     public void loop() {
         telemetry.addLine("Press A to reset Yaw");
         telemetry.addLine("Hold left bumper to drive in robot relative");
         telemetry.addLine("The left joystick sets the robot direction");
         telemetry.addLine("Moving the right joystick left and right turns the robot");
+        double forwardFactor = -gamepad1.left_stick_y;
+        double rightFactor = gamepad1.left_stick_x;
+        double turnFactor = gamepad1.right_stick_x;
 
+        aprilTag = new AprilTag("Webcam 1", hardwareMap);
+
+        List<AprilTagDetection> currentDetections = aprilTag.getDetectedTags();
+        telemetry.addData("AprilTags Detected", currentDetections.size());
+
+        for (AprilTagDetection detection : currentDetections) {
+            if (detection.id == 20 || detection.id == 24) {
+                telemetry.addLine("GOAL visible");
+                if (detection.center.x < 400) turnFactor += 0.1;
+                if (detection.center.x > 400) turnFactor -= 0.1;
+            }
+        }
 
 
 
@@ -158,6 +192,7 @@ public class robot extends OpMode {
                 ),
                 -gamepad1.right_stick_x
         ));    }
+
 
     // Thanks to FTC16072 for sharing this code!!
    /* public void drive(double forward, double right, double rotate) {
