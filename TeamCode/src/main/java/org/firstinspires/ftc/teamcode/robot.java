@@ -26,11 +26,13 @@ package org.firstinspires.ftc.teamcode;/* Copyright (c) 2025 FIRST. All rights r
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.firstinspires.ftc.teamcode;
 
+
+import android.util.Range;
 
 import com.acmerobotics.roadrunner.Pose2d;
 import com.acmerobotics.roadrunner.PoseVelocity2d;
+import com.acmerobotics.roadrunner.Rotation2d;
 import com.acmerobotics.roadrunner.Vector2d;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
@@ -41,18 +43,15 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.IMU;
+import com.sun.tools.javac.comp.Todo;
+
 import org.firstinspires.ftc.teamcode.PID;
+import org.firstinspires.ftc.teamcode.AprilTag;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.Position;
-import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
-import org.firstinspires.ftc.teamcode.AprilTag;
-import org.firstinspires.ftc.teamcode.PinpointLocalizer;
-import org.firstinspires.ftc.vision.VisionPortal;
+import org.firstinspires.ftc.teamcode.MecanumDrive;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
-import org.firstinspires.ftc.teamcode.MecanumDrive;
 
 import java.util.List;
 
@@ -82,11 +81,14 @@ public class robot extends OpMode {
     DcMotor launcher2;
     MecanumDrive drive;
     CRServo launchFeed;
+    AprilTag aprilTag;
+    double targetX = 0;
+    double targetY = 0;
+    double targetTheta = 0;
+
 
     // This declares the IMU needed to get the current direction the robot is facing
     IMU imu;
-
-    AprilTag aprilTag;
 
     @Override
     public void init() {
@@ -106,6 +108,7 @@ public class robot extends OpMode {
         //backLeftDrive.setDirection(DcMotor.Direction.REVERSE);
         //frontLeftDrive.setDirection(DcMotor.Direction.REVERSE);
 
+       // Range<Double> xrange = Range.create(targetX-0.1, targetX+0.1);
         // This uses RUN_USING_ENCODER to be more accurate.   If you don't have the encoder
         // wires, you should remove these
         /*frontLeftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
@@ -123,10 +126,23 @@ public class robot extends OpMode {
         RevHubOrientationOnRobot orientationOnRobot = new
                 RevHubOrientationOnRobot(logoDirection, usbDirection);
         imu.initialize(new IMU.Parameters(orientationOnRobot));
-
-        aprilTag = new AprilTag("Webcam 1", hardwareMap);
+        //TODO: Make the start values based on the april tags
+        double startX = 0;
+        double startY = 0;
+        double startTheta = 0;
     }
+    public Pose2d globalLoc() {
+        double x = 0;
+        double y = 0;
+        double theta = 0;
+        return new Pose2d(x, y, theta);
+    }
+    public void driveto(double x, double y, double theta) {
+        double dx = x - globalLoc().position.x;
+        double dy = y - globalLoc().position.y;
+        double dtheta = theta - globalLoc().heading.toDouble();
 
+    }
     @Override
     public void loop() {
         telemetry.addLine("Press A to reset Yaw");
@@ -136,6 +152,8 @@ public class robot extends OpMode {
         double forwardFactor = -gamepad1.left_stick_y;
         double rightFactor = gamepad1.left_stick_x;
         double turnFactor = gamepad1.right_stick_x;
+
+        aprilTag = new AprilTag("Webcam 1", hardwareMap);
 
         List<AprilTagDetection> currentDetections = aprilTag.getDetectedTags();
         telemetry.addData("AprilTags Detected", currentDetections.size());
@@ -148,19 +166,10 @@ public class robot extends OpMode {
             }
         }
 
-        // If you press the A button, then you reset the Yaw to be zero from the way
-        // the robot is currently pointing
-        if (gamepad1.a) {
-            imu.resetYaw();
-        }
-        // If you press the left bumper, you get a drive from the point of view of the robot
-        // (much like driving an RC vehicle)
-        if (gamepad1.left_bumper) {
-            drive(forwardFactor, rightFactor, turnFactor);
-        } else {
-            driveFieldRelative(forwardFactor, rightFactor, turnFactor);
-        }
+
+
     }
+
     // This routine drives the robot field relative
     public void driveFieldRelative(double forward, double right, double rotate) {
         // First, convert direction being asked to drive to polar coordinates
@@ -183,6 +192,7 @@ public class robot extends OpMode {
                 ),
                 -gamepad1.right_stick_x
         ));    }
+
 
     // Thanks to FTC16072 for sharing this code!!
    /* public void drive(double forward, double right, double rotate) {
