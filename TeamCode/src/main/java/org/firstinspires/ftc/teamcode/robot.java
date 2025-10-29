@@ -45,7 +45,10 @@ import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 import org.firstinspires.ftc.teamcode.AprilTag;
 import org.firstinspires.ftc.teamcode.PinpointLocalizer;
 import org.firstinspires.ftc.vision.VisionPortal;
+import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
+
+import java.util.List;
 
 /*
  * This OpMode illustrates how to program your robot to drive field relative.  This means
@@ -119,6 +122,17 @@ public class robot extends OpMode {
         double forwardFactor = -gamepad1.left_stick_y;
         double rightFactor = gamepad1.left_stick_x;
         double turnFactor = gamepad1.right_stick_x;
+
+        List<AprilTagDetection> currentDetections = aprilTag.getDetectedTags();
+        telemetry.addData("AprilTags Detected", currentDetections.size());
+
+        for (AprilTagDetection detection : currentDetections) {
+            if (detection.id == 20 || detection.id == 24) {
+                telemetry.addLine("GOAL visible");
+                if (detection.center.x < 400) turnFactor += 0.1;
+                if (detection.center.x > 400) turnFactor -= 0.1;
+            }
+        }
 
         // If you press the A button, then you reset the Yaw to be zero from the way
         // the robot is currently pointing

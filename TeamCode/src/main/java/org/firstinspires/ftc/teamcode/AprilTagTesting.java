@@ -40,9 +40,11 @@ public class AprilTagTesting extends OpMode {
                 switch (detection.id) {
                     case 20:
                         telemetry.addLine("Found blue GOAL");
+                        telemetry.addData("Blue GOAL X", detection.center.x);
                         break;
                     case 24:
                         telemetry.addLine("Found red GOAL");
+                        telemetry.addData("Red GOAL X", detection.center.x);
                         break;
                     case 21:
                         telemetry.addData("Pattern", "GPP");
