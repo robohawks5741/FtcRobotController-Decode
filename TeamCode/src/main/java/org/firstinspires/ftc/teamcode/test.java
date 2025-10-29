@@ -108,8 +108,6 @@ public class test extends OpMode {
         RevHubOrientationOnRobot orientationOnRobot = new
                 RevHubOrientationOnRobot(logoDirection, usbDirection);
         imu.initialize(new IMU.Parameters(orientationOnRobot));
-
-        aprilTag = new AprilTag("Webcam");
     }
 
     @Override
