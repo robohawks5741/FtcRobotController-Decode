@@ -1,6 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
-import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.hardwareMap;
+import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.BuiltinCameraDirection;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
@@ -18,7 +18,7 @@ public class AprilTag {
     private AprilTagProcessor aprilTag;
     private VisionPortal visionPortal;
 
-    public AprilTag(String deviceName) {
+    public AprilTag(String deviceName, HardwareMap hardwareMap) {
         if (deviceName.isEmpty()) throw new RuntimeException("Must provide a device name (AprilTag)");
         aprilTag = new AprilTagProcessor.Builder()
                 .setDrawAxes(true)
@@ -29,7 +29,7 @@ public class AprilTag {
 
         VisionPortal.Builder builder = new VisionPortal.Builder();
         builder.setCamera(hardwareMap.get(WebcamName.class, deviceName));
-        builder.enableLiveView(true);
+        builder.enableLiveView(false);
         builder.setStreamFormat(VisionPortal.StreamFormat.YUY2);
         builder.setAutoStopLiveView(true);
         builder.addProcessor(aprilTag);
