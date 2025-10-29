@@ -27,7 +27,6 @@ package org.firstinspires.ftc.teamcode;/* Copyright (c) 2025 FIRST. All rights r
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
 import com.acmerobotics.roadrunner.Pose2d;
 import com.acmerobotics.roadrunner.PoseVelocity2d;
@@ -42,7 +41,6 @@ import com.qualcomm.robotcore.hardware.IMU;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.teamcode.MecanumDrive;
-import org.firstinspires.ftc.teamcode.AprilTag;
 
 /*
  * This OpMode illustrates how to program your robot to drive field relative.  This means
@@ -72,9 +70,6 @@ public class test extends OpMode {
 
     // This declares the IMU needed to get the current direction the robot is facing
     IMU imu;
-
-    // Declares the wrapper AprilTag that Aidan made because he's really cool and awesome
-    AprilTag aprilTag;
 
     @Override
     public void init() {
@@ -113,21 +108,20 @@ public class test extends OpMode {
     @Override
     public void loop() {
         telemetry.addLine("Press A to reset Yaw");
-        telemetry.addLine("Hold left bumper to drive in field relative");
+        telemetry.addLine("Hold left bumper to drive in robot relative");
         telemetry.addLine("The left joystick sets the robot direction");
         telemetry.addLine("Moving the right joystick left and right turns the robot");
 
-        // If you press the X button, then you reset the Yaw to be zero from the way
+        // If you press the A button, then you reset the Yaw to be zero from the way
         // the robot is currently pointing
-        // Recommended to do this before the round starts usually
-        if (gamepad1.xWasPressed()) {
+        if (gamepad1.a) {
             imu.resetYaw();
         }
-
-        // Pressing left bumper enters field relative driving mode
+        // If you press the left bumper, you get a drive from the point of view of the robot
+        // (much like driving an RC vehicle)
         if (gamepad1.left_bumper) {
             driveFieldRelative(gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
-        } else {
+        }else {
             drive.setDrivePowers(new PoseVelocity2d(
                     new Vector2d(
                             -gamepad1.left_stick_y,
@@ -136,11 +130,11 @@ public class test extends OpMode {
                     -gamepad1.right_stick_x
             ));
         }
+       Double launchPow = (double) gamepad1.right_trigger;
 
-        Double launchPow = (double) gamepad1.right_trigger;
+       launcher1.setPower(launchPow);
+       launcher2.setPower(launchPow);
 
-        launcher1.setPower(launchPow);
-        launcher2.setPower(launchPow);
     }
 
     // This routine drives the robot field relative

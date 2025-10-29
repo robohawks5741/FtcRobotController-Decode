@@ -1,4 +1,4 @@
-/* Copyright (c) 2025 FIRST. All rights reserved.
+package org.firstinspires.ftc.teamcode;/* Copyright (c) 2025 FIRST. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted (subject to the limitations in the disclaimer below) provided that
@@ -28,16 +28,21 @@
  */
 package org.firstinspires.ftc.teamcode;
 
-import com.acmerobotics.roadrunner.ftc.PinpointIMU;
+
+import com.acmerobotics.roadrunner.Pose2d;
+import com.acmerobotics.roadrunner.PoseVelocity2d;
+import com.acmerobotics.roadrunner.Vector2d;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.IMU;
+import org.firstinspires.ftc.teamcode.PID;
 
-import org.firstinspires.ftc.robotcore.external.hardware.camera.BuiltinCameraDirection;
-import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Position;
@@ -47,6 +52,7 @@ import org.firstinspires.ftc.teamcode.PinpointLocalizer;
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
+import org.firstinspires.ftc.teamcode.MecanumDrive;
 
 import java.util.List;
 
@@ -64,14 +70,18 @@ import java.util.List;
  * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list
  *
  */
-@TeleOp(name = "Robot: Field Relative Mecanum Drive", group = "Robot")
-
+@TeleOp(name = "Robot", group = "Robot")
+@Disabled
 public class robot extends OpMode {
     // This declares the four motors needed
     DcMotor frontLeftDrive;
     DcMotor frontRightDrive;
     DcMotor backLeftDrive;
     DcMotor backRightDrive;
+    DcMotor launcher1;
+    DcMotor launcher2;
+    MecanumDrive drive;
+    CRServo launchFeed;
 
     // This declares the IMU needed to get the current direction the robot is facing
     IMU imu;
@@ -80,24 +90,28 @@ public class robot extends OpMode {
 
     @Override
     public void init() {
-        frontLeftDrive = hardwareMap.get(DcMotor.class, "front_left_drive");
-        frontRightDrive = hardwareMap.get(DcMotor.class, "front_right_drive");
-        backLeftDrive = hardwareMap.get(DcMotor.class, "back_left_drive");
-        backRightDrive = hardwareMap.get(DcMotor.class, "back_right_drive");
+        frontLeftDrive = hardwareMap.get(DcMotorEx.class, "fldrive");
+        frontRightDrive = hardwareMap.get(DcMotorEx.class, "frdrive");
+        backLeftDrive = hardwareMap.get(DcMotorEx.class, "bldrive");
+        backRightDrive = hardwareMap.get(DcMotorEx.class, "brdrive");
+        drive = new MecanumDrive(hardwareMap, new Pose2d(0, 0, 0));
 
-
-
+        launcher1 = hardwareMap.get(DcMotorEx.class, "launch1");
+        launcher2 = hardwareMap.get(DcMotorEx.class, "launch2");
+        launchFeed = hardwareMap.get(CRServo.class, "launchFeed");
+        launcher1.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
+        launcher2.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
         // We set the left motors in reverse which is needed for drive trains where the left
         // motors are opposite to the right ones.
-        backLeftDrive.setDirection(DcMotor.Direction.REVERSE);
-        frontLeftDrive.setDirection(DcMotor.Direction.REVERSE);
+        //backLeftDrive.setDirection(DcMotor.Direction.REVERSE);
+        //frontLeftDrive.setDirection(DcMotor.Direction.REVERSE);
 
         // This uses RUN_USING_ENCODER to be more accurate.   If you don't have the encoder
         // wires, you should remove these
-        frontLeftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        /*frontLeftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         frontRightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         backLeftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        backRightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        backRightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER); */
 
         imu = hardwareMap.get(IMU.class, "imu");
         // This needs to be changed to match the orientation on your robot
@@ -148,7 +162,7 @@ public class robot extends OpMode {
         }
     }
     // This routine drives the robot field relative
-    private void driveFieldRelative(double forward, double right, double rotate) {
+    public void driveFieldRelative(double forward, double right, double rotate) {
         // First, convert direction being asked to drive to polar coordinates
         double theta = Math.atan2(forward, right);
         double r = Math.hypot(right, forward);
@@ -162,11 +176,16 @@ public class robot extends OpMode {
         double newRight = r * Math.cos(theta);
 
         // Finally, call the drive method with robot relative forward and right amounts
-        drive(newForward, newRight, rotate);
-    }
+        drive.setDrivePowers(new PoseVelocity2d(
+                new Vector2d(
+                        -gamepad1.left_stick_y,
+                        -gamepad1.left_stick_x
+                ),
+                -gamepad1.right_stick_x
+        ));    }
 
     // Thanks to FTC16072 for sharing this code!!
-    public void drive(double forward, double right, double rotate) {
+   /* public void drive(double forward, double right, double rotate) {
         // This calculates the power needed for each wheel based on the amount of forward,
         // strafe right, and rotate
         double frontLeftPower = forward + right + rotate;
@@ -192,5 +211,5 @@ public class robot extends OpMode {
         frontRightDrive.setPower(maxSpeed * (frontRightPower / maxPower));
         backLeftDrive.setPower(maxSpeed * (backLeftPower / maxPower));
         backRightDrive.setPower(maxSpeed * (backRightPower / maxPower));
-    }
+    }*/
 }
