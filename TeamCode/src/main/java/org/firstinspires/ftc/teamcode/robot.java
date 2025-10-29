@@ -26,6 +26,7 @@ package org.firstinspires.ftc.teamcode;/* Copyright (c) 2025 FIRST. All rights r
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package org.firstinspires.ftc.teamcode;
 
 
 import com.acmerobotics.roadrunner.Pose2d;
@@ -43,7 +44,17 @@ import com.qualcomm.robotcore.hardware.IMU;
 import org.firstinspires.ftc.teamcode.PID;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.Position;
+import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
+import org.firstinspires.ftc.teamcode.AprilTag;
+import org.firstinspires.ftc.teamcode.PinpointLocalizer;
+import org.firstinspires.ftc.vision.VisionPortal;
+import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
+import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 import org.firstinspires.ftc.teamcode.MecanumDrive;
+
+import java.util.List;
 
 /*
  * This OpMode illustrates how to program your robot to drive field relative.  This means
@@ -74,6 +85,8 @@ public class robot extends OpMode {
 
     // This declares the IMU needed to get the current direction the robot is facing
     IMU imu;
+
+    AprilTag aprilTag;
 
     @Override
     public void init() {
@@ -110,6 +123,8 @@ public class robot extends OpMode {
         RevHubOrientationOnRobot orientationOnRobot = new
                 RevHubOrientationOnRobot(logoDirection, usbDirection);
         imu.initialize(new IMU.Parameters(orientationOnRobot));
+
+        aprilTag = new AprilTag("Webcam 1", hardwareMap);
     }
 
     @Override
@@ -118,12 +133,34 @@ public class robot extends OpMode {
         telemetry.addLine("Hold left bumper to drive in robot relative");
         telemetry.addLine("The left joystick sets the robot direction");
         telemetry.addLine("Moving the right joystick left and right turns the robot");
+        double forwardFactor = -gamepad1.left_stick_y;
+        double rightFactor = gamepad1.left_stick_x;
+        double turnFactor = gamepad1.right_stick_x;
 
+        List<AprilTagDetection> currentDetections = aprilTag.getDetectedTags();
+        telemetry.addData("AprilTags Detected", currentDetections.size());
 
+        for (AprilTagDetection detection : currentDetections) {
+            if (detection.id == 20 || detection.id == 24) {
+                telemetry.addLine("GOAL visible");
+                if (detection.center.x < 400) turnFactor += 0.1;
+                if (detection.center.x > 400) turnFactor -= 0.1;
+            }
+        }
 
-
+        // If you press the A button, then you reset the Yaw to be zero from the way
+        // the robot is currently pointing
+        if (gamepad1.a) {
+            imu.resetYaw();
+        }
+        // If you press the left bumper, you get a drive from the point of view of the robot
+        // (much like driving an RC vehicle)
+        if (gamepad1.left_bumper) {
+            drive(forwardFactor, rightFactor, turnFactor);
+        } else {
+            driveFieldRelative(forwardFactor, rightFactor, turnFactor);
+        }
     }
-
     // This routine drives the robot field relative
     public void driveFieldRelative(double forward, double right, double rotate) {
         // First, convert direction being asked to drive to polar coordinates
