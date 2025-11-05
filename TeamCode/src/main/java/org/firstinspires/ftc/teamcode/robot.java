@@ -42,9 +42,11 @@ import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.sun.tools.javac.comp.Todo;
 
+import org.firstinspires.ftc.robotserver.internal.webserver.PingResponse;
 import org.firstinspires.ftc.teamcode.PID;
 import org.firstinspires.ftc.teamcode.AprilTag;
 
@@ -52,6 +54,8 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.teamcode.MecanumDrive;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
+import org.firstinspires.ftc.teamcode.PID;
+import org.opencv.core.Mat;
 
 import java.util.List;
 
@@ -85,8 +89,8 @@ public class robot extends OpMode {
     double targetX = 0;
     double targetY = 0;
     double targetTheta = 0;
-
-
+    PID pid = new PID();
+    PinpointLocalizer PinpointLocalizer;
     // This declares the IMU needed to get the current direction the robot is facing
     IMU imu;
 
@@ -103,6 +107,8 @@ public class robot extends OpMode {
         launchFeed = hardwareMap.get(CRServo.class, "launchFeed");
         launcher1.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
         launcher2.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
+        PinpointLocalizer = new PinpointLocalizer(hardwareMap, 1, new Pose2d(0, 0, 0));
+        launchFeed.setDirection(DcMotorSimple.Direction.FORWARD);
         // We set the left motors in reverse which is needed for drive trains where the left
         // motors are opposite to the right ones.
         //backLeftDrive.setDirection(DcMotor.Direction.REVERSE);
@@ -130,18 +136,20 @@ public class robot extends OpMode {
         double startX = 0;
         double startY = 0;
         double startTheta = 0;
+        PinpointLocalizer.setPose(new Pose2d(startX, startY, startTheta));
+
     }
     public Pose2d globalLoc() {
-        double x = 0;
-        double y = 0;
-        double theta = 0;
+        double x = PinpointLocalizer.getPose().position.x;
+        double y = PinpointLocalizer.getPose().position.y;
+        double theta = PinpointLocalizer.getPose().heading.toDouble();
         return new Pose2d(x, y, theta);
     }
     public void driveto(double x, double y, double theta) {
-        double dx = x - globalLoc().position.x;
-        double dy = y - globalLoc().position.y;
-        double dtheta = theta - globalLoc().heading.toDouble();
-
+        double vectorx = pid.PIDControl(0,0,0, x, globalLoc().position.x);
+        double vectory = pid.PIDControl(0,0,0, x, globalLoc().position.y);
+        double vectortheta = pid.PIDControl(0,0,0, x, globalLoc().heading.toDouble());
+        driveFieldRelative(vectorx,vectory, vectortheta);
     }
     @Override
     public void loop() {
@@ -178,7 +186,7 @@ public class robot extends OpMode {
 
         // Second, rotate angle by the angle the robot is pointing
         theta = AngleUnit.normalizeRadians(theta -
-                imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS));
+                PinpointLocalizer.getPose().heading.toDouble()* Math.PI /180 );
 
         // Third, convert back to cartesian
         double newForward = r * Math.sin(theta);
@@ -187,10 +195,10 @@ public class robot extends OpMode {
         // Finally, call the drive method with robot relative forward and right amounts
         drive.setDrivePowers(new PoseVelocity2d(
                 new Vector2d(
-                        -gamepad1.left_stick_y,
-                        -gamepad1.left_stick_x
+                        -newForward,
+                        -newRight
                 ),
-                -gamepad1.right_stick_x
+                -theta
         ));    }
 
 
