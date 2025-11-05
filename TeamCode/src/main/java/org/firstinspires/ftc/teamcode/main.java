@@ -16,6 +16,7 @@ import com.qualcomm.robotcore.hardware.IMU;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.teamcode.MecanumDrive;
+import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 
 
 public class main extends  robot{
@@ -38,6 +39,9 @@ public class main extends  robot{
                     -gamepad1.right_stick_x
             ));
         }
+        if (gamepad1.x) {
+            driveto(10, 10, 10);
+        }
         Double launchPow;
         if (gamepad1.right_trigger >= 0.1) {
             launchPow = 1.0;
@@ -50,6 +54,16 @@ public class main extends  robot{
             launchFeed.setPower(1);
         } else {
             launchFeed.setPower(0);
+        }
+        if (gamepad1.b) {
+            if (aprilTag != null) {
+                for (AprilTagDetection detection : aprilTag.getDetectedTags()) {
+                    if (detection.id == 20 || detection.id == 24) {
+                        driveto(globalLoc().position.x, globalLoc().position.y, detection.ftcPose.bearing);
+                    }
+                }
+            }
+
         }
     }
 }

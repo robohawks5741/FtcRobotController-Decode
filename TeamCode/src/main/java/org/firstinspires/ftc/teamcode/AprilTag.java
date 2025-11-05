@@ -29,7 +29,7 @@ public class AprilTag {
 
         VisionPortal.Builder builder = new VisionPortal.Builder();
         builder.setCamera(hardwareMap.get(WebcamName.class, deviceName));
-        builder.enableLiveView(false);
+        builder.enableLiveView(true);
         builder.setStreamFormat(VisionPortal.StreamFormat.YUY2);
         builder.setAutoStopLiveView(true);
         builder.addProcessor(aprilTag);
