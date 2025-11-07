@@ -43,7 +43,8 @@ public class AprilTag {
     }
 
     public void setDecimation(int decimation) {
-        if (decimation < 1 || decimation > 3) throw new RuntimeException("Decimation must be between 1 and 3");
+        if (decimation < 1 || decimation > 3)
+            throw new RuntimeException("Decimation must be between 1 and 3");
         aprilTag.setDecimation(decimation);
     }
 }
