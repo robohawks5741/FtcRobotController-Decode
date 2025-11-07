@@ -21,9 +21,19 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 
 import java.util.List;
 
+
 @TeleOp(name="MAIN")
 public class main extends  robot{
     public void loop() {
+        double turnValue = -gamepad1.right_stick_x;
+
+        // If you press the A button, then you reset the Yaw to be zero from the way
+        // the robot is currently pointing
+
+        if (gamepad1.a) {
+            imu.resetYaw();
+        }
+
         PinpointLocalizer.update();
         List<AprilTagDetection> currentDetections = aprilTag.getDetectedTags();
         telemetry.addData("AprilTags Detected", currentDetections.size());
@@ -32,36 +42,32 @@ public class main extends  robot{
 
         // If you press the left bumper, you get a drive from the point of view of the robot
         // (much like driving an RC vehicle)
-        if (gamepad1.left_bumper) {
-            driveFieldRelative(gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
-        } else {
-            drive.setDrivePowers(new PoseVelocity2d(
-                    new Vector2d(
-                            -gamepad1.left_stick_y,
-                            -gamepad1.left_stick_x
-                    ),
-                    -gamepad1.right_stick_x
-            ));
-        }
+
         if (gamepad1.x) {
             driveto(10, 10, 10);
         }
+
         Double launchPow;
         if (gamepad1.right_trigger >= 0.1) {
             launchPow = 1.0;
         } else {
             launchPow = 0.0;
         }
+
         launcher1.setPower(-launchPow);
         launcher2.setPower(launchPow);
+
         if (gamepad1.a) {
             launchFeed.setPower(1);
         } else {
             launchFeed.setPower(0);
         }
-        if (gamepad1.b) {
+
+        List<AprilTagDetection> currentDetections = aprilTag.getDetectedTags();
+
+        if (gamepad1.b) { // Juniper AprilTag code
             if (aprilTag != null) {
-                for (AprilTagDetection detection : aprilTag.getDetectedTags()) {
+                for (AprilTagDetection detection : currentDetections) {
                     if (detection.id == 20 || detection.id == 24) {
                         driveto(globalLoc().position.x, globalLoc().position.y, detection.ftcPose.bearing);
                     }
@@ -69,6 +75,21 @@ public class main extends  robot{
             }
 
         }
+
+        if (gamepad1.dpad_left) { // Aidan AprilTag code
+            for (AprilTagDetection detection : currentDetections) {
+                if (detection.id == 20 || detection.id == 24) {
+                    telemetry.addLine("GOAL visible");
+                    double turnVector = pid.PIDControl(0.5, 0.1, 0.1, 400, detection.center.x);
+                    turnValue += turnVector;
+                    telemetry.addData("Turn vector from PID: ", turnVector);
+                }
+            }
+        }
+
+        if (gamepad1.left_bumper) {
+            driveFieldRelative(gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
+        } else {
         double turnFactor = gamepad1.right_stick_x;
         if (gamepad1.y) {
             if (!aprilTag.getDetectedTags().isEmpty()) {
@@ -86,7 +107,7 @@ public class main extends  robot{
                             -gamepad1.left_stick_y,
                             -gamepad1.left_stick_x
                     ),
-                    turnFactor
+                    turnValue
             ));
         }
         telemetry.addData("globalLocx", globalLoc().position.x);
