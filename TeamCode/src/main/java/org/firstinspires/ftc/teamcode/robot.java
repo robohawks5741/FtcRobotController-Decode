@@ -90,6 +90,9 @@ public class robot extends OpMode {
     double targetX = 0;
     double targetY = 0;
     double targetTheta = 0;
+    double vecx = 0;
+    double vecy = 0;
+    double vectheta= 0;
     PID pid = new PID();
     PinpointLocalizer PinpointLocalizer;
     // This declares the IMU needed to get the current direction the robot is facing
