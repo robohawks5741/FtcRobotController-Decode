@@ -15,17 +15,21 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.IMU;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.MecanumDrive;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 
+import java.util.List;
 
+@TeleOp(name="MAIN")
 public class main extends  robot{
     public void loop() {
+        PinpointLocalizer.update();
+        List<AprilTagDetection> currentDetections = aprilTag.getDetectedTags();
+        telemetry.addData("AprilTags Detected", currentDetections.size());
         // If you press the A button, then you reset the Yaw to be zero from the way
         // the robot is currently pointing
-        if (gamepad1.a) {
-            imu.resetYaw();
-        }
+
         // If you press the left bumper, you get a drive from the point of view of the robot
         // (much like driving an RC vehicle)
         if (gamepad1.left_bumper) {
@@ -65,5 +69,31 @@ public class main extends  robot{
             }
 
         }
+        double turnFactor = gamepad1.right_stick_x;
+        if (gamepad1.y) {
+            if (!aprilTag.getDetectedTags().isEmpty()) {
+                for (AprilTagDetection detection : aprilTag.getDetectedTags()) {
+                    if (detection.id == 20 || detection.id == 24) {
+                        telemetry.addLine("GOAL visible");
+                        if (detection.center.x < 400) turnFactor += 0.5;
+                        if (detection.center.x > 400) turnFactor -= 0.5;
+
+                    }
+                }
+            }
+            drive.setDrivePowers(new PoseVelocity2d(
+                    new Vector2d(
+                            -gamepad1.left_stick_y,
+                            -gamepad1.left_stick_x
+                    ),
+                    turnFactor
+            ));
+        }
+        telemetry.addData("globalLocx", globalLoc().position.x);
+        telemetry.addData("globalLocy", globalLoc().position.y);
+        telemetry.addData("globalLoctheta", Math.toDegrees(globalLoc().heading.toDouble()));
+        telemetry.addData("podx", PinpointLocalizer.driver.getPosX(DistanceUnit.MM));
+        telemetry.update();
+        updateTelemetry(telemetry);
     }
 }

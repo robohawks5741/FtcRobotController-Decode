@@ -46,6 +46,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.sun.tools.javac.comp.Todo;
 
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotserver.internal.webserver.PingResponse;
 import org.firstinspires.ftc.teamcode.PID;
 import org.firstinspires.ftc.teamcode.AprilTag;
@@ -107,7 +108,8 @@ public class robot extends OpMode {
         launchFeed = hardwareMap.get(CRServo.class, "launchFeed");
         launcher1.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
         launcher2.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
-        PinpointLocalizer = new PinpointLocalizer(hardwareMap, 1, new Pose2d(0, 0, 0));
+        PinpointLocalizer = new PinpointLocalizer(hardwareMap, 0.00072471557, new Pose2d(0, 0, 0));
+        PinpointLocalizer.driver.resetPosAndIMU();
         launchFeed.setDirection(DcMotorSimple.Direction.FORWARD);
         // We set the left motors in reverse which is needed for drive trains where the left
         // motors are opposite to the right ones.
@@ -137,19 +139,30 @@ public class robot extends OpMode {
         double startY = 0;
         double startTheta = 0;
         PinpointLocalizer.setPose(new Pose2d(startX, startY, startTheta));
+        aprilTag = new AprilTag("Webcam 1", hardwareMap);
+
 
     }
     public Pose2d globalLoc() {
         double x = PinpointLocalizer.getPose().position.x;
         double y = PinpointLocalizer.getPose().position.y;
+        //x = PinpointLocalizer.driver.getPosX(DistanceUnit.MM);
+       // y = PinpointLocalizer.driver.getPosY(DistanceUnit.MM);
         double theta = PinpointLocalizer.getPose().heading.toDouble();
         return new Pose2d(x, y, theta);
     }
     public void driveto(double x, double y, double theta) {
-        double vectorx = pid.PIDControl(0,0,0, x, globalLoc().position.x);
-        double vectory = pid.PIDControl(0,0,0, x, globalLoc().position.y);
-        double vectortheta = pid.PIDControl(0,0,0, x, globalLoc().heading.toDouble());
+        double Kp = 0.1;
+        double Ki = 0.1;
+        double Kd = 0.1;
+
+        double vectorx = pid.PIDControl(Kp,Ki,Kd, x, globalLoc().position.x);
+        double vectory = pid.PIDControl(Kp,Ki,Kd, x, globalLoc().position.y);
+        double vectortheta = pid.PIDControl(Kp,Ki,Kd, x, globalLoc().heading.toDouble());
         driveFieldRelative(vectorx,vectory, vectortheta);
+        telemetry.addData("vectorx", vectorx);
+        telemetry.addData("vectory", vectory);
+        telemetry.addData("vectortheta", vectortheta);
     }
     @Override
     public void loop() {
@@ -161,18 +174,10 @@ public class robot extends OpMode {
         double rightFactor = gamepad1.left_stick_x;
         double turnFactor = gamepad1.right_stick_x;
 
-        aprilTag = new AprilTag("Webcam 1", hardwareMap);
+        //drive.setDrivePowers()
 
-        List<AprilTagDetection> currentDetections = aprilTag.getDetectedTags();
-        telemetry.addData("AprilTags Detected", currentDetections.size());
 
-        for (AprilTagDetection detection : currentDetections) {
-            if (detection.id == 20 || detection.id == 24) {
-                telemetry.addLine("GOAL visible");
-                if (detection.center.x < 400) turnFactor += 0.1;
-                if (detection.center.x > 400) turnFactor -= 0.1;
-            }
-        }
+
 
 
 
