@@ -1,4 +1,6 @@
-package org.firstinspires.ftc.teamcode;/* Copyright (c) 2025 FIRST. All rights reserved.
+package org.firstinspires.ftc.teamcode;
+
+/* Copyright (c) 2025 FIRST. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted (subject to the limitations in the disclaimer below) provided that
@@ -109,35 +111,41 @@ public class robot extends OpMode {
         launcher2.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
         PinpointLocalizer = new PinpointLocalizer(hardwareMap, 1, new Pose2d(0, 0, 0));
         launchFeed.setDirection(DcMotorSimple.Direction.FORWARD);
+
         // We set the left motors in reverse which is needed for drive trains where the left
         // motors are opposite to the right ones.
-        //backLeftDrive.setDirection(DcMotor.Direction.REVERSE);
-        //frontLeftDrive.setDirection(DcMotor.Direction.REVERSE);
+        // backLeftDrive.setDirection(DcMotor.Direction.REVERSE);
+        // frontLeftDrive.setDirection(DcMotor.Direction.REVERSE);
 
-       // Range<Double> xrange = Range.create(targetX-0.1, targetX+0.1);
+        // Range<Double> xrange = Range.create(targetX-0.1, targetX+0.1);
         // This uses RUN_USING_ENCODER to be more accurate.   If you don't have the encoder
         // wires, you should remove these
-        /*frontLeftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        /* frontLeftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         frontRightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         backLeftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         backRightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER); */
 
         imu = hardwareMap.get(IMU.class, "imu");
+
         // This needs to be changed to match the orientation on your robot
+
         RevHubOrientationOnRobot.LogoFacingDirection logoDirection =
                 RevHubOrientationOnRobot.LogoFacingDirection.UP;
         RevHubOrientationOnRobot.UsbFacingDirection usbDirection =
                 RevHubOrientationOnRobot.UsbFacingDirection.FORWARD;
-
         RevHubOrientationOnRobot orientationOnRobot = new
                 RevHubOrientationOnRobot(logoDirection, usbDirection);
+
         imu.initialize(new IMU.Parameters(orientationOnRobot));
-        //TODO: Make the start values based on the april tags
+
+        // TODO: Make the start values based on the april tags
+
         double startX = 0;
         double startY = 0;
         double startTheta = 0;
         PinpointLocalizer.setPose(new Pose2d(startX, startY, startTheta));
 
+        aprilTag = new AprilTag("Webcam 1", hardwareMap);
     }
     public Pose2d globalLoc() {
         double x = PinpointLocalizer.getPose().position.x;
@@ -153,29 +161,31 @@ public class robot extends OpMode {
     }
     @Override
     public void loop() {
-        telemetry.addLine("Press A to reset Yaw");
-        telemetry.addLine("Hold left bumper to drive in robot relative");
-        telemetry.addLine("The left joystick sets the robot direction");
-        telemetry.addLine("Moving the right joystick left and right turns the robot");
-        double forwardFactor = -gamepad1.left_stick_y;
-        double rightFactor = gamepad1.left_stick_x;
-        double turnFactor = gamepad1.right_stick_x;
-
-        aprilTag = new AprilTag("Webcam 1", hardwareMap);
-
         List<AprilTagDetection> currentDetections = aprilTag.getDetectedTags();
         telemetry.addData("AprilTags Detected", currentDetections.size());
-
         for (AprilTagDetection detection : currentDetections) {
-            if (detection.id == 20 || detection.id == 24) {
-                telemetry.addLine("GOAL visible");
-                if (detection.center.x < 400) turnFactor += 0.1;
-                if (detection.center.x > 400) turnFactor -= 0.1;
+            if (detection.metadata != null) {
+                switch (detection.id) {
+                    case 20:
+                        telemetry.addLine("Found blue GOAL");
+                        telemetry.addData("Blue GOAL X", detection.center.x);
+                        break;
+                    case 24:
+                        telemetry.addLine("Found red GOAL");
+                        telemetry.addData("Red GOAL X", detection.center.x);
+                        break;
+                    case 21:
+                        telemetry.addData("Pattern", "GPP");
+                        break;
+                    case 22:
+                        telemetry.addData("Pattern", "PGP");
+                        break;
+                    case 23:
+                        telemetry.addData("Pattern", "PPG");
+                        break;
+                }
             }
         }
-
-
-
     }
 
     // This routine drives the robot field relative
@@ -199,35 +209,6 @@ public class robot extends OpMode {
                         -newRight
                 ),
                 -theta
-        ));    }
-
-
-    // Thanks to FTC16072 for sharing this code!!
-   /* public void drive(double forward, double right, double rotate) {
-        // This calculates the power needed for each wheel based on the amount of forward,
-        // strafe right, and rotate
-        double frontLeftPower = forward + right + rotate;
-        double frontRightPower = forward - right - rotate;
-        double backRightPower = forward + right - rotate;
-        double backLeftPower = forward - right + rotate;
-
-        double maxPower = 1.0;
-        double maxSpeed = 1.0;  // make this slower for outreaches
-
-        // This is needed to make sure we don't pass > 1.0 to any wheel
-        // It allows us to keep all of the motors in proportion to what they should
-        // be and not get clipped
-        maxPower = Math.max(maxPower, Math.abs(frontLeftPower));
-        maxPower = Math.max(maxPower, Math.abs(frontRightPower));
-        maxPower = Math.max(maxPower, Math.abs(backRightPower));
-        maxPower = Math.max(maxPower, Math.abs(backLeftPower));
-
-        // We multiply by maxSpeed so that it can be set lower for outreaches
-        // When a young child is driving the robot, we may not want to allow full
-        // speed.
-        frontLeftDrive.setPower(maxSpeed * (frontLeftPower / maxPower));
-        frontRightDrive.setPower(maxSpeed * (frontRightPower / maxPower));
-        backLeftDrive.setPower(maxSpeed * (backLeftPower / maxPower));
-        backRightDrive.setPower(maxSpeed * (backRightPower / maxPower));
-    }*/
+        ));
+    }
 }
