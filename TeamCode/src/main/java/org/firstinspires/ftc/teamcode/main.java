@@ -23,7 +23,7 @@ import java.util.List;
 
 
 @TeleOp(name="MAIN")
-public class main extends  robot{
+public class main extends robot {
     public void loop() {
         double turnValue = -gamepad1.right_stick_x;
 
@@ -35,8 +35,6 @@ public class main extends  robot{
         }
 
         PinpointLocalizer.update();
-        List<AprilTagDetection> currentDetections = aprilTag.getDetectedTags();
-        telemetry.addData("AprilTags Detected", currentDetections.size());
         // If you press the A button, then you reset the Yaw to be zero from the way
         // the robot is currently pointing
 
@@ -90,15 +88,16 @@ public class main extends  robot{
         if (gamepad1.left_bumper) {
             driveFieldRelative(gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
         } else {
-        double turnFactor = gamepad1.right_stick_x;
-        if (gamepad1.y) {
-            if (!aprilTag.getDetectedTags().isEmpty()) {
-                for (AprilTagDetection detection : aprilTag.getDetectedTags()) {
-                    if (detection.id == 20 || detection.id == 24) {
-                        telemetry.addLine("GOAL visible");
-                        if (detection.center.x < 400) turnFactor += 0.5;
-                        if (detection.center.x > 400) turnFactor -= 0.5;
+            double turnFactor = gamepad1.right_stick_x;
+            if (gamepad1.y) { // Aidan primitive AprilTag code
+                if (!currentDetections.isEmpty()) {
+                    for (AprilTagDetection detection : currentDetections) {
+                        if (detection.id == 20 || detection.id == 24) {
+                            telemetry.addLine("GOAL visible");
+                            if (detection.center.x < 400) turnFactor += 0.5;
+                            if (detection.center.x > 400) turnFactor -= 0.5;
 
+                        }
                     }
                 }
             }
@@ -110,10 +109,10 @@ public class main extends  robot{
                     turnValue
             ));
         }
-        telemetry.addData("globalLocx", globalLoc().position.x);
-        telemetry.addData("globalLocy", globalLoc().position.y);
-        telemetry.addData("globalLoctheta", Math.toDegrees(globalLoc().heading.toDouble()));
-        telemetry.addData("podx", PinpointLocalizer.driver.getPosX(DistanceUnit.MM));
+        telemetry.addData("globalLoc X", globalLoc().position.x);
+        telemetry.addData("globalLoc Y", globalLoc().position.y);
+        telemetry.addData("globalLoc theta", Math.toDegrees(globalLoc().heading.toDouble()));
+        telemetry.addData("pinpoint X", PinpointLocalizer.driver.getPosX(DistanceUnit.MM));
         telemetry.update();
         updateTelemetry(telemetry);
     }
