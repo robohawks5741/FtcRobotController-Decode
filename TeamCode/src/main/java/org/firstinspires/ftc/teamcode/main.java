@@ -23,7 +23,7 @@ import java.util.List;
 
 
 @TeleOp(name="MAIN")
-public class main extends  robot{
+public class main extends  robot {
     public void loop() {
         double turnValue = -gamepad1.right_stick_x;
 
@@ -63,7 +63,7 @@ public class main extends  robot{
             launchFeed.setPower(0);
         }
 
-        List<AprilTagDetection> currentDetections = aprilTag.getDetectedTags();
+        //List<AprilTagDetection> currentDetections = aprilTag.getDetectedTags();
 
         if (gamepad1.b) { // Juniper AprilTag code
             if (aprilTag != null) {
@@ -90,31 +90,35 @@ public class main extends  robot{
         if (gamepad1.left_bumper) {
             driveFieldRelative(gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
         } else {
-        double turnFactor = gamepad1.right_stick_x;
-        if (gamepad1.y) {
-            if (!aprilTag.getDetectedTags().isEmpty()) {
-                for (AprilTagDetection detection : aprilTag.getDetectedTags()) {
-                    if (detection.id == 20 || detection.id == 24) {
-                        telemetry.addLine("GOAL visible");
-                        if (detection.center.x < 400) turnFactor += 0.5;
-                        if (detection.center.x > 400) turnFactor -= 0.5;
+            double turnFactor = gamepad1.right_stick_x;
+            if (gamepad1.y) {
+                if (!aprilTag.getDetectedTags().isEmpty()) {
+                    for (AprilTagDetection detection : aprilTag.getDetectedTags()) {
+                        if (detection.id == 20 || detection.id == 24) {
+                            telemetry.addLine("GOAL visible");
+                            if (detection.center.x < 400) turnFactor += 0.5;
+                            if (detection.center.x > 400) turnFactor -= 0.5;
 
+                        }
                     }
                 }
+                drive.setDrivePowers(new PoseVelocity2d(
+                        new Vector2d(
+                                -gamepad1.left_stick_y,
+                                -gamepad1.left_stick_x
+                        ),
+                        turnValue
+                ));
             }
-            drive.setDrivePowers(new PoseVelocity2d(
-                    new Vector2d(
-                            -gamepad1.left_stick_y,
-                            -gamepad1.left_stick_x
-                    ),
-                    turnValue
-            ));
+            telemetry.addData("vecx", vecx);
+            telemetry.addData("vecy", vecy);
+            telemetry.addData("vectheta", vectheta);
+            telemetry.addData("globalLocx", globalLoc().position.x);
+            telemetry.addData("globalLocy", globalLoc().position.y);
+            telemetry.addData("globalLoctheta", Math.toDegrees(globalLoc().heading.toDouble()));
+            telemetry.addData("podx", PinpointLocalizer.driver.getPosX(DistanceUnit.MM));
+            telemetry.update();
+            updateTelemetry(telemetry);
         }
-        telemetry.addData("globalLocx", globalLoc().position.x);
-        telemetry.addData("globalLocy", globalLoc().position.y);
-        telemetry.addData("globalLoctheta", Math.toDegrees(globalLoc().heading.toDouble()));
-        telemetry.addData("podx", PinpointLocalizer.driver.getPosX(DistanceUnit.MM));
-        telemetry.update();
-        updateTelemetry(telemetry);
     }
 }

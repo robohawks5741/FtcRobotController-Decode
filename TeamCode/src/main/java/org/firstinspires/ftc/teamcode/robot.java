@@ -92,6 +92,9 @@ public class robot extends OpMode {
     double targetX = 0;
     double targetY = 0;
     double targetTheta = 0;
+    double vecx = 0;
+    double vecy = 0;
+    double vectheta= 0;
     PID pid = new PID();
     PinpointLocalizer PinpointLocalizer;
     // This declares the IMU needed to get the current direction the robot is facing
@@ -168,9 +171,9 @@ public class robot extends OpMode {
         double vectory = pid.PIDControl(Kp,Ki,Kd, x, globalLoc().position.y);
         double vectortheta = pid.PIDControl(Kp,Ki,Kd, x, globalLoc().heading.toDouble());
         driveFieldRelative(vectorx,vectory, vectortheta);
-        telemetry.addData("vectorx", vectorx);
-        telemetry.addData("vectory", vectory);
-        telemetry.addData("vectortheta", vectortheta);
+        vecx = vectorx;
+        vecy = vectory;
+        vectheta = vectortheta;
     }
     @Override
     public void loop() {
