@@ -171,9 +171,9 @@ public class robot extends OpMode {
         double vectory = pid.PIDControl(Kp,Ki,Kd, x, globalLoc().position.y);
         double vectortheta = pid.PIDControl(Kp,Ki,Kd, x, globalLoc().heading.toDouble());
         driveFieldRelative(vectorx,vectory, vectortheta);
-        vecx = vectorx;
-        vecy = vectory;
-        vectheta = vectortheta;
+        vecx = vectorx/1000;
+        vecy = vectory/1000;
+        vectheta = vectortheta/1000;
     }
     @Override
     public void loop() {
