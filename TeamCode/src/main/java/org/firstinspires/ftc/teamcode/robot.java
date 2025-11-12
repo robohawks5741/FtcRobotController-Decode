@@ -114,6 +114,7 @@ public class robot extends OpMode {
         PinpointLocalizer = new PinpointLocalizer(hardwareMap, 0.00072471557, new Pose2d(0, 0, 0));
         PinpointLocalizer.driver.resetPosAndIMU();
         launchFeed.setDirection(DcMotorSimple.Direction.FORWARD);
+       // List<AprilTagDetection> currentDetections;
         // We set the left motors in reverse which is needed for drive trains where the left
         // motors are opposite to the right ones.
         //backLeftDrive.setDirection(DcMotor.Direction.REVERSE);

@@ -89,6 +89,9 @@ public class main extends  robot{
                     turnFactor
             ));
         }
+        telemetry.addData("vecx", vecx);
+        telemetry.addData("vecy", vecy);
+        telemetry.addData("vectheta", vectheta);
         telemetry.addData("globalLocx", globalLoc().position.x);
         telemetry.addData("globalLocy", globalLoc().position.y);
         telemetry.addData("globalLoctheta", Math.toDegrees(globalLoc().heading.toDouble()));
