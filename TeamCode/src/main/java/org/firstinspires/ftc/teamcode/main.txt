@@ -35,8 +35,6 @@ public class main extends robot {
         }
 
         PinpointLocalizer.update();
-        List<AprilTagDetection> currentDetections = aprilTag.getDetectedTags();
-        telemetry.addData("AprilTags Detected", currentDetections.size());
         // If you press the A button, then you reset the Yaw to be zero from the way
         // the robot is currently pointing
 
@@ -54,8 +52,8 @@ public class main extends robot {
             launchPow = 0.0;
         }
 
-        launcher1.setPower(-launchPow);
-        launcher2.setPower(launchPow);
+        launcherLeft.setPower(-launchPow);
+        launcherRight.setPower(launchPow);
 
         if (gamepad1.a) {
             launchFeed.setPower(1);
