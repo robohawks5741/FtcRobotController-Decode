@@ -24,7 +24,7 @@ import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 @Disabled
 public class robot extends OpMode {
 
-
+    AprilTag aprilTag;
     DcMotorEx launcherLeft;
     DcMotorEx launcherRight;
 
@@ -84,12 +84,9 @@ public class robot extends OpMode {
         );
 
         imu.initialize(new IMU.Parameters(orientationOnRobot));
-
-<<<<<<< Updated upstream
         lastPosLeft = launcherLeft.getCurrentPosition();
         lastPosRight = launcherRight.getCurrentPosition();
         lastTime = System.nanoTime();
-=======
         // TODO: Make the start values based on the april tags
 
         double startX = 0;
@@ -100,7 +97,7 @@ public class robot extends OpMode {
 
 
        // aprilTag = new AprilTag("Webcam 1", hardwareMap);
->>>>>>> Stashed changes
+
     }
 
     public Pose2d globalLoc() {
