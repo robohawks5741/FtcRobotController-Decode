@@ -85,9 +85,22 @@ public class robot extends OpMode {
 
         imu.initialize(new IMU.Parameters(orientationOnRobot));
 
+<<<<<<< Updated upstream
         lastPosLeft = launcherLeft.getCurrentPosition();
         lastPosRight = launcherRight.getCurrentPosition();
         lastTime = System.nanoTime();
+=======
+        // TODO: Make the start values based on the april tags
+
+        double startX = 0;
+        double startY = 0;
+        double startTheta = 0;
+        PinpointLocalizer.setPose(new Pose2d(startX, startY, startTheta));
+        aprilTag = new AprilTag("Webcam 1", hardwareMap);
+
+
+       // aprilTag = new AprilTag("Webcam 1", hardwareMap);
+>>>>>>> Stashed changes
     }
 
     public Pose2d globalLoc() {

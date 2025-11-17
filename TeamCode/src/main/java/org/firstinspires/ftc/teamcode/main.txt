@@ -47,7 +47,7 @@ public class main extends robot {
 
         Double launchPow;
         if (gamepad1.right_trigger >= 0.1) {
-            launchPow = 1.0;
+            launchPow = 0.5;
         } else {
             launchPow = 0.0;
         }
@@ -56,7 +56,7 @@ public class main extends robot {
         launcherRight.setPower(launchPow);
 
         if (gamepad1.a) {
-            launchFeed.setPower(1);
+            launchFeed.setPower(-1);
         } else {
             launchFeed.setPower(0);
         }
