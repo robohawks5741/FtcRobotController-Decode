@@ -4,7 +4,10 @@ import com.acmerobotics.roadrunner.PoseVelocity2d;
 import com.acmerobotics.roadrunner.Vector2d;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.VoltageUnit;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 
 import java.util.List;
@@ -14,14 +17,10 @@ import java.util.List;
 public class claymain extends robot {
     public void loop() {
         PinpointLocalizer.update();
+        List<AprilTagDetection> currentDetections = aprilTag.getDetectedTags();
+        PID pid = new PID();
+        double turnValue = -gamepad1.right_stick_x;
 
-        drive.setDrivePowers(new PoseVelocity2d(
-                new Vector2d(
-                        -gamepad1.left_stick_y,
-                        -gamepad1.left_stick_x
-                ),
-                -gamepad1.right_stick_x
-        ));
 
         Double launchPow;
     /*    if (gamepad1.right_trigger >= 0.1) {
@@ -67,14 +66,33 @@ public class claymain extends robot {
         } else if (!(gamepad1.right_trigger > 0.1)){
             launchFeed.setPower(0);
         }
-
-
+        if (gamepad1.dpad_left) { // Aidan AprilTag code
+            for (AprilTagDetection detection : currentDetections) {
+                if (detection.id == 20 || detection.id == 24) {
+                    telemetry.addLine("GOAL visible");
+                    turnVector = pid.PIDControl(0.5, 0.1, 0.1, 400, detection.center.x);
+                    turnValue += turnVector;
+                    telemetry.addData("Turn vector from PID: ", turnVector);
+                }
+            }
+        }
+        drive.setDrivePowers(new PoseVelocity2d(
+                new Vector2d(
+                        -gamepad1.left_stick_y,
+                        -gamepad1.left_stick_x
+                ),
+                -turnValue
+        ));
         telemetry.addData("globalLoc x", globalLoc().position.x);
         telemetry.addData("globalLoc y", globalLoc().position.y);
         telemetry.addData("globalLoc theta", Math.toDegrees(globalLoc().heading.toDouble()));
         telemetry.addData("pinpoint x", PinpointLocalizer.driver.getPosX(DistanceUnit.MM));
-        telemetry.addData("RPM Left", getRPMLeft());
-        telemetry.addData("RPM Right", getRPMRight());
+        telemetry.addData("RPM Left clay", getRPMLeft());
+        telemetry.addData("RPM Right clay", getRPMRight());
+        telemetry.addData("RPM Left", launcherLeft.getVelocity(AngleUnit.DEGREES)*60/360);
+        telemetry.addData("RPM Right", launcherRight.getVelocity(AngleUnit.DEGREES)*60/360);
+        telemetry.addData("Left Voltage", launcherLeft.getCurrent(CurrentUnit.AMPS));
+        telemetry.addData("Right Voltage", launcherRight.getCurrent(CurrentUnit.AMPS));
         telemetry.addData("RPM TPS Left", rpmToTicksPerSec(getRPMLeft()));
         telemetry.addData("RPM TPS Right", rpmToTicksPerSec(getRPMRight()));
         telemetry.update();
