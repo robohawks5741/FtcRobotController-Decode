@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
+import android.util.Size;
+
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.BuiltinCameraDirection;
@@ -29,10 +31,11 @@ public class AprilTag {
 
         VisionPortal.Builder builder = new VisionPortal.Builder();
         builder.setCamera(hardwareMap.get(WebcamName.class, deviceName));
-        builder.enableLiveView(true);
+        builder.setLiveViewContainerId(0);
         builder.setStreamFormat(VisionPortal.StreamFormat.YUY2);
         builder.setAutoStopLiveView(true);
         builder.addProcessor(aprilTag);
+        builder.setCameraResolution(new Size(1280, 720));
 
         visionPortal = builder.build();
         visionPortal.setProcessorEnabled(aprilTag, true);
