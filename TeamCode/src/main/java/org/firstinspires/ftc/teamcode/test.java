@@ -33,6 +33,7 @@ import com.acmerobotics.roadrunner.PoseVelocity2d;
 import com.acmerobotics.roadrunner.Vector2d;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -58,7 +59,7 @@ import org.firstinspires.ftc.teamcode.MecanumDrive;
  */
 @TeleOp(name = "Basic Movement Test", group = "Robot")
 
-public class test extends OpMode {
+public class test extends LinearOpMode {
     // This declares the four motors needed
     DcMotor frontLeftDrive;
     DcMotor frontRightDrive;
@@ -72,15 +73,16 @@ public class test extends OpMode {
     IMU imu;
 
     @Override
-    public void init() {
+    public void runOpMode() throws InterruptedException {
         frontLeftDrive = hardwareMap.get(DcMotor.class, "fldrive");
         frontRightDrive = hardwareMap.get(DcMotor.class, "frdrive");
         backLeftDrive = hardwareMap.get(DcMotor.class, "bldrive");
         backRightDrive = hardwareMap.get(DcMotor.class, "brdrive");
         drive = new MecanumDrive(hardwareMap, new Pose2d(0, 0, 0));
+        PinpointLocalizer pinpoint = new PinpointLocalizer(hardwareMap, 0.00072471557, new Pose2d(0, 0, 0));
 
-        launcher1 = hardwareMap.get(DcMotor.class, "launch1");
-        launcher2 = hardwareMap.get(DcMotor.class, "launch2");
+       // launcher1 = hardwareMap.get(DcMotor.class, "launch1");
+        //launcher2 = hardwareMap.get(DcMotor.class, "launch2");
         // We set the left motors in reverse which is needed for drive trains where the left
         // motors are opposite to the right ones.
         //backLeftDrive.setDirection(DcMotor.Direction.REVERSE);
@@ -103,39 +105,48 @@ public class test extends OpMode {
         RevHubOrientationOnRobot orientationOnRobot = new
                 RevHubOrientationOnRobot(logoDirection, usbDirection);
         imu.initialize(new IMU.Parameters(orientationOnRobot));
+        waitForStart();
+        while (opModeIsActive()){
+            pinpoint.update();
+            drive.localizer.update();
+            telemetry.addLine("Press A to reset Yaw");
+            telemetry.addLine("Hold left bumper to drive in robot relative");
+            telemetry.addLine("The left joystick sets the robot direction");
+            telemetry.addLine("Moving the right joystick left and right turns the robot");
+
+            // If you press the A button, then you reset the Yaw to be zero from the way
+            // the robot is currently pointing
+            if (gamepad1.a) {
+                imu.resetYaw();
+            }
+            // If you press the left bumper, you get a drive from the point of view of the robot
+            // (much like driving an RC vehicle)
+            if (gamepad1.left_bumper) {
+                driveFieldRelative(gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
+            }else {
+                drive.setDrivePowers(new PoseVelocity2d(
+                        new Vector2d(
+                                -gamepad1.left_stick_y,
+                                -gamepad1.left_stick_x
+                        ),
+                        -gamepad1.right_stick_x
+                ));
+            }
+            telemetry.addData("PPX", drive.localizer.getPose().position.x);
+            telemetry.addData("PPY", drive.localizer.getPose().position.y);
+            telemetry.addData("PPRot", drive.localizer.getPose().heading.toDouble());
+            telemetry.addData("PPX2", pinpoint.getPose().position.x);
+            telemetry.addData("PPY2", pinpoint.getPose().position.y);
+            telemetry.addData("PPRot2", pinpoint.getPose().heading.toDouble());
+            telemetry.update();
+            Double launchPow = (double) gamepad1.right_trigger;
+
+           // launcher1.setPower(launchPow);
+            //launcher2.setPower(launchPow);
+        }
     }
 
-    @Override
-    public void loop() {
-        telemetry.addLine("Press A to reset Yaw");
-        telemetry.addLine("Hold left bumper to drive in robot relative");
-        telemetry.addLine("The left joystick sets the robot direction");
-        telemetry.addLine("Moving the right joystick left and right turns the robot");
 
-        // If you press the A button, then you reset the Yaw to be zero from the way
-        // the robot is currently pointing
-        if (gamepad1.a) {
-            imu.resetYaw();
-        }
-        // If you press the left bumper, you get a drive from the point of view of the robot
-        // (much like driving an RC vehicle)
-        if (gamepad1.left_bumper) {
-            driveFieldRelative(gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
-        }else {
-            drive.setDrivePowers(new PoseVelocity2d(
-                    new Vector2d(
-                            -gamepad1.left_stick_y,
-                            -gamepad1.left_stick_x
-                    ),
-                    -gamepad1.right_stick_x
-            ));
-        }
-       Double launchPow = (double) gamepad1.right_trigger;
-
-       launcher1.setPower(launchPow);
-       launcher2.setPower(launchPow);
-
-    }
 
     // This routine drives the robot field relative
     private void driveFieldRelative(double forward, double right, double rotate) {
