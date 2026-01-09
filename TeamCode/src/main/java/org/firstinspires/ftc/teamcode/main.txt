@@ -47,21 +47,21 @@ public class main extends robot {
 
         Double launchPow;
         if (gamepad1.right_trigger >= 0.1) {
-            launchPow = 0.5;
+            launchPow = 1.0;
         } else {
             launchPow = 0.0;
         }
 
-        launcherLeft.setPower(-launchPow);
-        launcherRight.setPower(launchPow);
+        launcher1.setPower(-launchPow);
+        launcher2.setPower(launchPow);
 
         if (gamepad1.a) {
-            launchFeed.setPower(-1);
+            launchFeed.setPower(1);
         } else {
             launchFeed.setPower(0);
         }
 
-        //List<AprilTagDetection> currentDetections = aprilTag.getDetectedTags();
+        List<AprilTagDetection> currentDetections = aprilTag.getDetectedTags();
 
         if (gamepad1.b) { // Juniper AprilTag code
             if (aprilTag != null) {
@@ -85,15 +85,18 @@ public class main extends robot {
             }
         }
 
-        if (!gamepad1.left_bumper) {
+        if (gamepad1.left_bumper) {
+            driveFieldRelative(gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
+        } else {
             double turnFactor = gamepad1.right_stick_x;
             if (gamepad1.y) { // Aidan primitive AprilTag code
-                if (!aprilTag.getDetectedTags().isEmpty()) {
-                    for (AprilTagDetection detection : aprilTag.getDetectedTags()) {
+                if (!currentDetections.isEmpty()) {
+                    for (AprilTagDetection detection : currentDetections) {
                         if (detection.id == 20 || detection.id == 24) {
                             telemetry.addLine("GOAL visible");
                             if (detection.center.x < 400) turnFactor += 0.5;
                             if (detection.center.x > 400) turnFactor -= 0.5;
+
                         }
                     }
                 }
@@ -105,16 +108,11 @@ public class main extends robot {
                     ),
                     turnValue
             ));
-        } else {
-            driveFieldRelative(gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
         }
-        telemetry.addData("vecx", vecx);
-        telemetry.addData("vecy", vecy);
-        telemetry.addData("vectheta", vectheta);
-        telemetry.addData("globalLoc x", globalLoc().position.x);
-        telemetry.addData("globalLoc y", globalLoc().position.y);
+        telemetry.addData("globalLoc X", globalLoc().position.x);
+        telemetry.addData("globalLoc Y", globalLoc().position.y);
         telemetry.addData("globalLoc theta", Math.toDegrees(globalLoc().heading.toDouble()));
-        telemetry.addData("pinpoint x", PinpointLocalizer.driver.getPosX(DistanceUnit.MM));
+        telemetry.addData("pinpoint X", PinpointLocalizer.driver.getPosX(DistanceUnit.MM));
         telemetry.update();
         updateTelemetry(telemetry);
     }
