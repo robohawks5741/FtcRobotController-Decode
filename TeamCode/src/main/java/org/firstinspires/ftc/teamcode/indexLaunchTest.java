@@ -34,24 +34,16 @@ public class indexLaunchTest extends robot {
     ElapsedTime timer = new ElapsedTime();
     @Override
     public void runOpMode() throws InterruptedException {
-        DcMotorEx motor = hardwareMap.get(DcMotorEx.class, "motor");
-        Servo hood = hardwareMap.get(Servo.class, "hood");
-        Servo feed = hardwareMap.get(Servo.class, "feed");
-        DcMotorEx intake = hardwareMap.get(DcMotorEx.class, "intake");
-        CRServo turret1 = hardwareMap.get(CRServo.class, "turret1");
-        CRServo turret2 = hardwareMap.get(CRServo.class, "turret2");
-      //  turret1.scaleRange(0.25, .75);
-        //turret2.scaleRange(.25, 0.75);
-        turret1.setDirection(CRServo.Direction.REVERSE);
-        turret2.setDirection(CRServo.Direction.REVERSE);
+        //DcMotorEx motor = hardwareMap.get(DcMotorEx.class, "motor");
 
-        motor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        motor.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
-        motor.setVelocityPIDFCoefficients(0.3,0.0,0.3, 4);
+
+        launcher.setVelocityPIDFCoefficients(0.3,0.0,0.3, 4);
         double Kp = 0.0045;
         double Ki = 0.0001028;
         //double Kd = 0.000000045;
         double Kd = 0.0000135;
+        boolean x = false;
+        int index = 0;
         Pose2d beginPose;
         //yaw of turret in robot space, 0 is center, positive is right, negative is left
         double turretYawRobot = 0.0;
@@ -95,12 +87,12 @@ public class indexLaunchTest extends robot {
             result = limelight.getLatestResult();
             if (gamepad1.right_trigger > 0.0) {
                 launcher.setVelocity(-gamepad1.right_stick_y * 6000, AngleUnit.DEGREES);
-            } else if (gamepad1.left_trigger > 0.0) {
-                launcher.setPower(gamepad1.right_stick_y);
-            } else if (gamepad1.right_bumper){
-               // motor.setVelocity(6000, AngleUnit.DEGREES);
             }else {
                 launcher.setPower(0.0);
+            }
+            if (gamepad1.left_trigger > 0) {
+                launchFeedL.setPower(1);
+                launchFeedR.setPower(1);
             }
             if (gamepad1.left_bumper){
                 hood.setPosition(clamp(gamepad1.left_stick_y, 0.0, 0.95));
@@ -111,10 +103,16 @@ public class indexLaunchTest extends robot {
                 intake.setPower(0);
             }
 
-            if (gamepad1.x){
-                indexer(3, true);
-            } else {
-                indexer(0, false);
+            if (gamepad1.x && !x){
+               if (index <3) {
+                   index += 1;
+               } else {
+                   index = 0;
+               }
+               indexer(index, true);
+               x = true;
+            } else if (!gamepad1.x) {
+                x = false;
             }
             if (gamepad1.dpad_up) {
                 Kp += 0.0001;
@@ -195,17 +193,18 @@ public class indexLaunchTest extends robot {
             telemetry.addData("turretYawRobot", turretYawRobot);
             telemetry.addData("turretYawField", turretYawRobot+drive.localizer.getPose().heading.toDouble());
             telemetry.addData("turretYawField2", turretYawRobot2);
-            telemetry.addData("Power", motor.getPower());
-            telemetry.addData("RPM", motor.getVelocity(AngleUnit.DEGREES));
-            telemetry.addData("RPM Adjusted", motor.getVelocity(AngleUnit.DEGREES)*20);
+            telemetry.addData("Power", launcher.getPower());
+            telemetry.addData("Launch Current", launcher.getCurrent(CurrentUnit.AMPS));
+            telemetry.addData("RPM", launcher.getVelocity(AngleUnit.DEGREES));
+            telemetry.addData("RPM Adjusted", launcher.getVelocity(AngleUnit.DEGREES)*20);
             telemetry.addData("TargetRPM", gamepad1.right_stick_y*6000);
             telemetry.addData("Right Stick Y", gamepad1.right_stick_y);
             //telemetry.addData("Left Trigger", gamepad1.left_trigger);
-            telemetry.addData("Current", motor.getCurrent(CurrentUnit.AMPS));
+            telemetry.addData("Current", launcher.getCurrent(CurrentUnit.AMPS));
             telemetry.addData("Hood Position", hood.getPosition());
             telemetry.addData("turret1", turret1.getPower());
             telemetry.addData("turret2", turret2.getPower());
-            telemetry.addData("index", feed.getPosition());
+            telemetry.addData("index", indexer.getPosition());
             telemetry.addData("Kp", Kp);
             telemetry.addData("Ki x1000", Ki*1000);
             telemetry.addData("Kd x1000", Kd*1000);

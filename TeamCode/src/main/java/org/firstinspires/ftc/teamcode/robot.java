@@ -59,6 +59,9 @@ public class robot extends LinearOpMode {
     CRServo launchFeedL;
     CRServo launchFeedR;
     Servo indexer;
+    CRServo turret1;
+    CRServo turret2;
+    Servo hood;
     public MecanumDrive drive;
 
     public double TICKS_PER_REV = 384.5;
@@ -87,7 +90,15 @@ public class robot extends LinearOpMode {
     @Override
     public void runOpMode() throws InterruptedException {
 
-
+        hood = hardwareMap.get(Servo.class, "hood");
+        // Servo feed = hardwareMap.get(Servo.class, "feed");
+        intake = hardwareMap.get(DcMotorEx.class, "intake");
+        turret1 = hardwareMap.get(CRServo.class, "turret1");
+        turret2 = hardwareMap.get(CRServo.class, "turret2");
+        //  turret1.scaleRange(0.25, .75);
+        //turret2.scaleRange(.25, 0.75);
+        turret1.setDirection(CRServo.Direction.REVERSE);
+        turret2.setDirection(CRServo.Direction.REVERSE);
         PinpointLocalizer = new PinpointLocalizer(hardwareMap, 0.00072471557, new Pose2d(0, 0, 0));
         PinpointLocalizer.driver.resetPosAndIMU();
 
