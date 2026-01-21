@@ -40,7 +40,7 @@ public class newMain extends robot {
             if (gamepad1.right_trigger > 0.1) {
                 launcherLeft.setVelocity(-500);
                 launcherRight.setVelocity(-500);
-                launchFeed.setPower(-1);
+                launchfeedL.setPower(-1);
                 setIntakePower(-1);
 
             } else if (gamepad1.y) {
@@ -64,11 +64,11 @@ public class newMain extends robot {
             }
 
             if (gamepad1.left_bumper) {
-                launchFeed.setPower(1);
+                launchfeedL.setPower(1);
             } else if (gamepad1.right_bumper) {
-                launchFeed.setPower(-1);
+                launchfeedL.setPower(-1);
             } else if (!(gamepad1.right_trigger > 0.1)) {
-                launchFeed.setPower(0);
+                launchfeedL.setPower(0);
             }
             if (gamepad1.dpad_left) { // Aidan AprilTag code
                 for (AprilTagDetection detection : currentDetections) {

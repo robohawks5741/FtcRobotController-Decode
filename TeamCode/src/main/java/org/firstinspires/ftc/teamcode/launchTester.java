@@ -19,6 +19,8 @@ public class launchTester extends LinearOpMode {
         DcMotorEx motor = hardwareMap.get(DcMotorEx.class, "motor");
         Servo hood = hardwareMap.get(Servo.class, "hood");
         CRServo feed = hardwareMap.get(CRServo.class, "feed");
+        DcMotorEx intake = hardwareMap.get(DcMotorEx.class, "intake");
+
         motor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         motor.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
         motor.setVelocityPIDFCoefficients(0.3,0.0,0.3, 4);
@@ -35,10 +37,12 @@ public class launchTester extends LinearOpMode {
                 motor.setPower(0.0);
             }
             if (gamepad1.left_bumper){
-                hood.setPosition(clamp(gamepad1.left_stick_y, -0.5, -0.1));
+                hood.setPosition(clamp(gamepad1.left_stick_y, 0.0, 0.95));
             }
             if (gamepad1.y) {
-                feed.setPower(1);
+                intake.setPower(1);
+            }else {
+                intake.setPower(0);
             }
             telemetry.addData("Power", motor.getPower());
             telemetry.addData("RPM", motor.getVelocity(AngleUnit.DEGREES));
@@ -47,6 +51,7 @@ public class launchTester extends LinearOpMode {
             telemetry.addData("Right Stick Y", gamepad1.right_stick_y);
             //telemetry.addData("Left Trigger", gamepad1.left_trigger);
             telemetry.addData("Current", motor.getCurrent(CurrentUnit.AMPS));
+            telemetry.addData("Hood Position", hood.getPosition());
             telemetry.update();
 
         }

@@ -27,6 +27,7 @@ public class AprilTag {
                 .setDrawCubeProjection(true)
                 .setDrawTagOutline(true)
                 .setOutputUnits(DistanceUnit.INCH, AngleUnit.DEGREES)
+               // .setCameraPose()
                 .build();
 
         VisionPortal.Builder builder = new VisionPortal.Builder();
@@ -35,7 +36,7 @@ public class AprilTag {
         builder.setStreamFormat(VisionPortal.StreamFormat.YUY2);
         builder.setAutoStopLiveView(true);
         builder.addProcessor(aprilTag);
-        builder.setCameraResolution(new Size(1280, 720));
+        builder.setCameraResolution(new Size(1920, 1080));
 
         visionPortal = builder.build();
         visionPortal.setProcessorEnabled(aprilTag, true);

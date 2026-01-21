@@ -30,42 +30,35 @@ package org.firstinspires.ftc.teamcode;
  */
 
 
-import android.util.Range;
-
 import com.acmerobotics.roadrunner.Pose2d;
 import com.acmerobotics.roadrunner.PoseVelocity2d;
-import com.acmerobotics.roadrunner.Rotation2d;
 import com.acmerobotics.roadrunner.Vector2d;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
-import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.IMU;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-import org.firstinspires.ftc.teamcode.MecanumDrive;
-import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
+import org.firstinspires.ftc.teamcode.subsystems.MecanumDrive;
+import org.firstinspires.ftc.teamcode.subsystems.PinpointLocalizer;
 
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
-
-import java.util.List;
+import com.qualcomm.robotcore.hardware.Servo;
 
 @TeleOp(name = "Robot", group = "Robot")
 @Disabled
 public class robot extends LinearOpMode {
 
     AprilTag aprilTag;
-    DcMotorEx launcherLeft;
-    DcMotorEx launcherRight;
+    DcMotorEx launcher;
     double turnVector;
     DcMotorEx intake;
-    CRServo launchFeed;
-
+    CRServo launchFeedL;
+    CRServo launchFeedR;
+    Servo indexer;
     public MecanumDrive drive;
 
     public double TICKS_PER_REV = 384.5;
@@ -94,27 +87,7 @@ public class robot extends LinearOpMode {
     @Override
     public void runOpMode() throws InterruptedException {
 
-       // intake = hardwareMap.get(DcMotorEx.class, "intake");
 
-
-/*
-        launcherLeft = hardwareMap.get(DcMotorEx.class, "launch1");
-        launcherRight = hardwareMap.get(DcMotorEx.class, "launch2");
-        launchFeed = hardwareMap.get(CRServo.class, "launchFeed");
-
-        launcherLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        launcherRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-
-        // 🔄 Reverse left motor so its encoder counts correctly
-        //launcherLeft.setDirection(DcMotorEx.Direction.REVERSE);
-
-        // Enable FTC's built-in PIDF control
-        launcherLeft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        launcherRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-
-        launcherLeft.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, LAUNCH_PIDF);
-        launcherRight.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, LAUNCH_PIDF);
-*/
         PinpointLocalizer = new PinpointLocalizer(hardwareMap, 0.00072471557, new Pose2d(0, 0, 0));
         PinpointLocalizer.driver.resetPosAndIMU();
 
@@ -138,7 +111,7 @@ public class robot extends LinearOpMode {
         double startY = 0;
         double startTheta = 0;
         PinpointLocalizer.setPose(new Pose2d(startX, startY, startTheta));
-        aprilTag = new AprilTag("Webcam 1", hardwareMap);
+        //aprilTag = new AprilTag("Webcam 1", hardwareMap);
         waitForStart();
         drive = new MecanumDrive(hardwareMap, new Pose2d(0, 0, 0));
         // aprilTag = new AprilTag("Webcam 1", hardwareMap);
@@ -177,7 +150,9 @@ public class robot extends LinearOpMode {
             telemetry.addData("Right RPM", getRPMRight());
             telemetry.update();
         } */
-
+        if (isStopRequested()){
+            indexer(0, false);
+        }
     }
 
     public void driveFieldRelative(double forward, double right, double rotate) {
@@ -204,46 +179,43 @@ public class robot extends LinearOpMode {
         intake.setPower(power);
     }
 
-    public void setLaunchPower(double leftPower, double rightPower){
-        launcherLeft.setPower(leftPower);
-        launcherRight.setPower(rightPower);
-
-    }
-
-    // --- RPM Calculations for telemetry ---
-    public double getRPMLeft() {
-        long now = System.nanoTime();
-        double dt = (now - lastTime) / 1e9;
-
-        int currentPos = launcherLeft.getCurrentPosition();
-        int deltaTicks = currentPos - lastPosLeft;
-
-        lastPosLeft = currentPos;
-        lastTime = now;
-
-        return (deltaTicks / TICKS_PER_REV) / dt * 60.0;
-    }
-
-    public double getRPMRight() {
-        long now = System.nanoTime();
-        double dt = (now - lastTime) / 1e9;
-
-        int currentPos = launcherRight.getCurrentPosition();
-        int deltaTicks = currentPos - lastPosRight;
-
-        lastPosRight = currentPos;
-        lastTime = now;
-
-        return (deltaTicks / TICKS_PER_REV) / dt * 60.0;
-    }
 
     // --- BUILT-IN PIDF VELOCITY CONTROL ---
-    public void setLaunchRPM(double leftRPM, double rightRPM) {
-        launcherLeft.setVelocity(rpmToTicksPerSec(leftRPM));
-        launcherRight.setVelocity(rpmToTicksPerSec(rightRPM));
+    public void setLaunchRPM(double launchRPM) {
+        launcher.setVelocity(rpmToTicksPerSec(launchRPM));
+
     }
 
     public double rpmToTicksPerSec(double rpm) {
         return (rpm * TICKS_PER_REV) / 60.0;
+    }
+
+    public void indexer(int position, boolean isIntake) {
+        switch (position){
+
+            case 1:
+                if (isIntake) {
+                    indexer.setPosition(0.167);
+                }else {
+                    indexer.setPosition(0.5);
+                }
+                break;
+            case 2:
+                if (isIntake) {
+                    indexer.setPosition(0.333);
+                }else {
+                    indexer.setPosition(0.667);
+                }
+                break;
+            case 3:
+                if (isIntake) {
+                    indexer.setPosition(.5);
+                } else {
+                    indexer.setPosition(0.833);
+                }
+                break;
+            default:
+                indexer.setPosition(0.0);
+        }
     }
 }
