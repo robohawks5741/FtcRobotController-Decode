@@ -30,14 +30,25 @@ package org.firstinspires.ftc.teamcode;
  */
 
 
+import static androidx.core.math.MathUtils.clamp;
+import static java.lang.Math.abs;
+import static java.lang.Math.toDegrees;
+
+import androidx.annotation.NonNull;
+
+import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
+import com.acmerobotics.roadrunner.Action;
 import com.acmerobotics.roadrunner.Pose2d;
 import com.acmerobotics.roadrunner.PoseVelocity2d;
 import com.acmerobotics.roadrunner.Vector2d;
+import com.qualcomm.hardware.limelightvision.LLResult;
+import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
+import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.IMU;
 
@@ -47,6 +58,9 @@ import org.firstinspires.ftc.teamcode.subsystems.PinpointLocalizer;
 
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.util.ElapsedTime;
+
+import java.util.concurrent.TimeUnit;
 
 @TeleOp(name = "Robot", group = "Robot")
 @Disabled
@@ -62,6 +76,8 @@ public class robot extends LinearOpMode {
     CRServo turret1;
     CRServo turret2;
     Servo hood;
+    Servo feed;
+    ColorSensor color;
     public MecanumDrive drive;
 
     public double TICKS_PER_REV = 384.5;
@@ -73,10 +89,19 @@ public class robot extends LinearOpMode {
     int lastPosLeft;
     int lastPosRight;
     long lastTime;
+    int index = 0;
 
     PinpointLocalizer PinpointLocalizer;
     IMU imu;
-
+    public static class Params {
+        public double beginPosX = 62;
+        public double beginPosY = -22.5;
+        public double Kp = 0.0045;
+        public double Ki = 0.0001028;
+        //double Kd = 0.000000045;
+        public double Kd = 0.0000135;
+    }
+    public static AutoBackBlue.Params PARAMS = new AutoBackBlue.Params();
 
 
 
@@ -86,22 +111,32 @@ public class robot extends LinearOpMode {
         double theta = PinpointLocalizer.getPose().heading.toDouble();
         return new Pose2d(x, y, theta);
     }
-
+    PID pid;
+    Limelight3A limelight;
+    LLResult result;
     @Override
     public void runOpMode() throws InterruptedException {
-
+        limelight = hardwareMap.get(Limelight3A.class, "limelight");
+        result = limelight.getLatestResult();
+        //pid = new PID();
         hood = hardwareMap.get(Servo.class, "hood");
         // Servo feed = hardwareMap.get(Servo.class, "feed");
         intake = hardwareMap.get(DcMotorEx.class, "intake");
         turret1 = hardwareMap.get(CRServo.class, "turret1");
         turret2 = hardwareMap.get(CRServo.class, "turret2");
+        feed = hardwareMap.get(Servo.class, "feed");
+        launchFeedL = hardwareMap.get(CRServo.class, "launchFeedL");
+        launchFeedR = hardwareMap.get(CRServo.class, "launchFeedR");
+        launcher = hardwareMap.get(DcMotorEx.class, "launcher");
+        indexer = hardwareMap.get(Servo.class, "index");
+        color = hardwareMap.get(ColorSensor.class, "color");
         //  turret1.scaleRange(0.25, .75);
         //turret2.scaleRange(.25, 0.75);
         turret1.setDirection(CRServo.Direction.REVERSE);
         turret2.setDirection(CRServo.Direction.REVERSE);
         PinpointLocalizer = new PinpointLocalizer(hardwareMap, 0.00072471557, new Pose2d(0, 0, 0));
         PinpointLocalizer.driver.resetPosAndIMU();
-
+        pid = new PID();
       //  launchFeed.setDirection(DcMotorSimple.Direction.FORWARD);
 
        // imu = hardwareMap.get(IMU.class, "imu");
@@ -162,7 +197,7 @@ public class robot extends LinearOpMode {
             telemetry.update();
         } */
         if (isStopRequested()){
-            indexer(0, false);
+            indexer(0);
         }
     }
 
@@ -201,32 +236,161 @@ public class robot extends LinearOpMode {
         return (rpm * TICKS_PER_REV) / 60.0;
     }
 
-    public void indexer(int position, boolean isIntake) {
+    public void indexer(int position) {
         switch (position){
 
             case 1:
-                if (isIntake) {
-                    indexer.setPosition(0.167);
-                }else {
-                    indexer.setPosition(0.5);
-                }
+                //3 at launch
+                indexer.setPosition(0.167);
                 break;
             case 2:
-                if (isIntake) {
-                    indexer.setPosition(0.333);
-                }else {
-                    indexer.setPosition(0.667);
-                }
+                //2 at intake
+                indexer.setPosition(0.375);
                 break;
+
             case 3:
-                if (isIntake) {
-                    indexer.setPosition(.5);
-                } else {
-                    indexer.setPosition(0.833);
-                }
+                //1 at launch
+                indexer.setPosition(.55);
+
+                break;
+            case 4:
+                //3 at intake
+                indexer.setPosition(0.75);
+                break;
+            case 5:
+                //2 at launch
+                indexer.setPosition(0.925);
+                break;
+            case 0:
+                //1 at intake
+                indexer.setPosition(0);
                 break;
             default:
+                //1 at intake
                 indexer.setPosition(0.0);
+        }
+    }
+    public class turretTrack implements Action {
+        @Override
+        public boolean run(@NonNull TelemetryPacket telemetryPacket) {
+            while (opModeIsActive()) {
+                turret2.setPower(-pid.PIDControl(PARAMS.Kp, PARAMS.Ki, PARAMS.Kd, 0.0, limelight.getLatestResult().getTx()));
+                if (abs(limelight.getLatestResult().getTx()) < 2) {
+                    break;
+                }
+            }
+            return false;
+        }
+    }
+    public void feedOn() {
+        feed.setPosition(0.03);
+        launchFeedL.setPower(-1);
+        launchFeedR.setPower(1);
+
+
+    }
+    public void feedOff() {
+        feed.setPosition(0.22);
+        launchFeedL.setPower(0);
+        launchFeedR.setPower(0);
+    }
+    public class launchCycle implements Action {
+        @Override
+        public boolean run(@NonNull TelemetryPacket telemetryPacket) {
+            ElapsedTime time = new ElapsedTime(ElapsedTime.Resolution.SECONDS);
+            double timer = time.now(TimeUnit.SECONDS);
+            launcher.setVelocity(36000, AngleUnit.DEGREES);
+            indexer(0);
+            feedOff();
+            while (opModeIsActive()) {
+                intake.setPower(0.1);
+                telemetry.addData("launchCycle Running", "");
+                drive.setDrivePowers(new PoseVelocity2d(
+                        new Vector2d(
+                                -gamepad2.left_stick_y,
+                                -gamepad2.left_stick_x
+                        ),
+                        -gamepad2.right_stick_x
+                ));
+                if (gamepad1.right_bumper){
+                    //   if
+                    /* turret1.setPosition((gamepad1.left_stick_x+0.5));
+                     */
+                    //turret2.setPosition((gamepad1.left_stick_x+0.5));
+                    turret1.setPower(-gamepad1.left_stick_x);
+                    turret2.setPower(gamepad1.left_stick_x);
+                    //turret1.setPower();
+                    telemetry.addLine("Turret Running");
+                } else {
+                    turret1.setPower(0);
+                    turret2.setPower(0);
+                }
+                if (gamepad1.left_bumper){
+                    hood.setPosition(clamp(gamepad1.left_stick_y, 0.0, 0.95));
+                }
+                if (time.now(TimeUnit.SECONDS) - timer == 3) {
+                    feedOn();
+                }
+                if (time.now(TimeUnit.SECONDS) - timer == 6) {
+                    feedOff();
+                    //indexer(2);
+                }
+                if (time.now(TimeUnit.SECONDS) - timer == 7) {
+                    //feedOff();
+                    indexer(2);
+                }
+                if (time.now(TimeUnit.SECONDS) - timer == 8) {
+                    feedOn();
+                }
+                if (time.now(TimeUnit.SECONDS) - timer == 11) {
+                    feedOff();
+                    //indexer(4);
+                }
+                if (time.now(TimeUnit.SECONDS) - timer == 12) {
+                    //feedOff();
+                    indexer(4);
+                }
+                if (time.now(TimeUnit.SECONDS) - timer == 13) {
+                    feedOn();
+                }
+                if (time.now(TimeUnit.SECONDS) - timer == 16) {
+                    feedOff();
+
+
+                }
+                if (time.now(TimeUnit.SECONDS) - timer == 17) {
+
+                    launcher.setVelocity(0, AngleUnit.DEGREES);
+                    indexer(0);
+
+                    // return true;
+
+                }
+                if (time.now(TimeUnit.SECONDS) - timer > 18) {
+                    intake.setPower(0.0);
+                    break;
+                }
+            }
+            return false;
+        }
+    }
+    public class setPowers implements Action {
+      //  @Override;
+
+        @Override
+        public boolean run(@NonNull TelemetryPacket telemetryPacket) {
+            ElapsedTime time = new ElapsedTime(ElapsedTime.Resolution.SECONDS);
+            double timer = time.now(TimeUnit.SECONDS);
+            while (time.now(TimeUnit.SECONDS) - timer < 20) {
+                drive.setDrivePowers(new PoseVelocity2d(
+                        new Vector2d(
+                                -gamepad2.left_stick_y,
+                                -gamepad2.left_stick_x
+                        ),
+                        -gamepad2.right_stick_x
+                ));
+            }
+            return false;
         }
     }
 }

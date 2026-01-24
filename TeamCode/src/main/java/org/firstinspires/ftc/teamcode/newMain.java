@@ -38,37 +38,36 @@ public class newMain extends robot {
             }
 
             if (gamepad1.right_trigger > 0.1) {
-                launcherLeft.setVelocity(-500);
-                launcherRight.setVelocity(-500);
-                launchfeedL.setPower(-1);
+                launcher.setVelocity(-500);
+                //launcherRight.setVelocity(-500);
+                launchFeedL.setPower(-1);
                 setIntakePower(-1);
 
             } else if (gamepad1.y) {
-                launcherLeft.setVelocity(-400);
-                launcherRight.setVelocity(-400);
+                launcher.setVelocity(-400);
+                //launcherRight.setVelocity(-400);
             } else if (gamepad1.a) {
-                launcherLeft.setVelocity(-200);
-                launcherRight.setVelocity(-200);
+                launcher.setVelocity(-200);
+                //launcherRight.setVelocity(-200);
             } else if (gamepad1.x) {
-                launcherLeft.setVelocity(-2000);
-                launcherRight.setVelocity(-2000);
+                launcher.setVelocity(-2000);
+              //  launcherRight.setVelocity(-2000);
             } else if (gamepad1.dpad_left) {
-                launcherLeft.setVelocity(-1000);
-                launcherRight.setVelocity(0);
+                launcher.setVelocity(-1000);
             } else if (gamepad1.dpad_right) {
-                launcherLeft.setVelocity(0);
-                launcherRight.setVelocity(-1000);
+                launcher.setVelocity(0);
+              //  launcherRight.setVelocity(-1000);
             } else {
-                launcherLeft.setVelocity(0);
-                launcherRight.setVelocity(0);
+                launcher.setVelocity(0);
+                //launcherRight.setVelocity(0);
             }
 
             if (gamepad1.left_bumper) {
-                launchfeedL.setPower(1);
+                launchFeedL.setPower(1);
             } else if (gamepad1.right_bumper) {
-                launchfeedL.setPower(-1);
+                launchFeedL.setPower(-1);
             } else if (!(gamepad1.right_trigger > 0.1)) {
-                launchfeedL.setPower(0);
+                launchFeedL.setPower(0);
             }
             if (gamepad1.dpad_left) { // Aidan AprilTag code
                 for (AprilTagDetection detection : currentDetections) {
@@ -101,16 +100,16 @@ public class newMain extends robot {
             telemetry.addData("globalLoc y", globalLoc().position.y);
             telemetry.addData("globalLoc theta", Math.toDegrees(globalLoc().heading.toDouble()));
             telemetry.addData("pinpoint x", PinpointLocalizer.driver.getPosX(DistanceUnit.MM));
-            telemetry.addData("RPM Left clay", getRPMLeft());
-            telemetry.addData("RPM Right clay", getRPMRight());
-            telemetry.addData("RPM Left", launcherLeft.getVelocity(AngleUnit.DEGREES) * 60 / 360);
-            telemetry.addData("RPM Right", launcherRight.getVelocity(AngleUnit.DEGREES) * 60 / 360);
-            telemetry.addData("Left Current", launcherLeft.getCurrent(CurrentUnit.AMPS));
-            telemetry.addData("Right Current", launcherRight.getCurrent(CurrentUnit.AMPS));
-            telemetry.addData("RPM TPS Left", rpmToTicksPerSec(getRPMLeft()));
-            telemetry.addData("RPM TPS Right", rpmToTicksPerSec(getRPMRight()));
-            telemetry.addData("pos Left", launcherLeft.getCurrentPosition());
-            telemetry.addData("pos Right", launcherRight.getCurrentPosition());
+           // telemetry.addData("RPM Left clay", getRPMLeft());
+            //telemetry.addData("RPM Right clay", getRPMRight());
+            telemetry.addData("RPM Left", launcher.getVelocity(AngleUnit.DEGREES) * 60 / 360);
+            //telemetry.addData("RPM Right", launcherRight.getVelocity(AngleUnit.DEGREES) * 60 / 360);
+            telemetry.addData("Left Current", launcher.getCurrent(CurrentUnit.AMPS));
+           // telemetry.addData("Right Current", launcherRight.getCurrent(CurrentUnit.AMPS));
+          //  telemetry.addData("RPM TPS Left", rpmToTicksPerSec(getRPMLeft()));
+            //telemetry.addData("RPM TPS Right", rpmToTicksPerSec(getRPMRight()));
+            telemetry.addData("pos Left", launcher.getCurrentPosition());
+            //telemetry.addData("pos Right", launcherRight.getCurrentPosition());
             telemetry.update();
             updateTelemetry(telemetry);
         }
