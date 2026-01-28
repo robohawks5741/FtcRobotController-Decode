@@ -20,9 +20,9 @@ public class AutoBackBlue extends robot {
         public double Ki = 0.0001028;
         //double Kd = 0.000000045;
         public double Kd = 0.0000135;
-        public double targetX = -25;
-        public double targetY = -35;
-        public double targetHeading = -140;
+        public double targetX = -20;
+        public double targetY = -30;
+        public double targetHeading = -135;
     }
     public static Params PARAMS = new Params();
 
@@ -85,7 +85,7 @@ public class AutoBackBlue extends robot {
             );*/
             drive.localizer.update();
             beginPose = drive.localizer.getPose();
-
+           // hood.setPosition(0.0);
             double time = 0;
             Actions.runBlocking(new SequentialAction(
                     drive.actionBuilder(beginPose)

@@ -90,7 +90,7 @@ public class robot extends LinearOpMode {
     int lastPosRight;
     long lastTime;
     int index = 0;
-
+    int power = 3000;
     PinpointLocalizer PinpointLocalizer;
     IMU imu;
     public static class Params {
@@ -143,8 +143,8 @@ public class robot extends LinearOpMode {
 
         RevHubOrientationOnRobot orientationOnRobot = new
                 RevHubOrientationOnRobot(
-                RevHubOrientationOnRobot.LogoFacingDirection.UP,
-                RevHubOrientationOnRobot.UsbFacingDirection.FORWARD
+                RevHubOrientationOnRobot.LogoFacingDirection.LEFT,
+                RevHubOrientationOnRobot.UsbFacingDirection.UP
         );
 
        // imu.initialize(new IMU.Parameters(orientationOnRobot));
@@ -228,7 +228,7 @@ public class robot extends LinearOpMode {
 
     // --- BUILT-IN PIDF VELOCITY CONTROL ---
     public void setLaunchRPM(double launchRPM) {
-        launcher.setVelocity(rpmToTicksPerSec(launchRPM));
+        launcher.setVelocity(rpmToTicksPerSec(launchRPM), AngleUnit.DEGREES);
 
     }
 
@@ -275,6 +275,7 @@ public class robot extends LinearOpMode {
         public boolean run(@NonNull TelemetryPacket telemetryPacket) {
             while (opModeIsActive()) {
                 turret2.setPower(-pid.PIDControl(PARAMS.Kp, PARAMS.Ki, PARAMS.Kd, 0.0, limelight.getLatestResult().getTx()));
+                turret1.setPower(pid.PIDControl(PARAMS.Kp, PARAMS.Ki, PARAMS.Kd, 0.0, limelight.getLatestResult().getTx()));
                 if (abs(limelight.getLatestResult().getTx()) < 2) {
                     break;
                 }
@@ -299,12 +300,18 @@ public class robot extends LinearOpMode {
         public boolean run(@NonNull TelemetryPacket telemetryPacket) {
             ElapsedTime time = new ElapsedTime(ElapsedTime.Resolution.SECONDS);
             double timer = time.now(TimeUnit.SECONDS);
-            launcher.setVelocity(36000, AngleUnit.DEGREES);
-            indexer(0);
+            setLaunchRPM(power);
+            index = 0;
+            indexer(index);
+            double longDelay;
+            double shortDelay;
             feedOff();
             while (opModeIsActive()) {
-                intake.setPower(0.1);
+                intake.setPower(0.2);
                 telemetry.addData("launchCycle Running", "");
+                //telemetry.addData("unadjusted RPM", launcher.getVelocity(AngleUnit.DEGREES)/6);
+                telemetry.addData("LAUNCH RPM", launcher.getVelocity(AngleUnit.DEGREES));
+                telemetry.update();
                 drive.setDrivePowers(new PoseVelocity2d(
                         new Vector2d(
                                 -gamepad2.left_stick_y,
@@ -326,43 +333,52 @@ public class robot extends LinearOpMode {
                     turret2.setPower(0);
                 }
                 if (gamepad1.left_bumper){
-                    hood.setPosition(clamp(gamepad1.left_stick_y, 0.0, 0.95));
+                    hood.setPosition(clamp(gamepad1.left_stick_y, 0.25, 0.95));
                 }
-                if (time.now(TimeUnit.SECONDS) - timer == 3) {
+                hood.setPosition(0.25);
+                if (time.now(TimeUnit.SECONDS) - timer == 4) {
                     feedOn();
                 }
-                if (time.now(TimeUnit.SECONDS) - timer == 6) {
+                if (time.now(TimeUnit.SECONDS) - timer == 7) {
                     feedOff();
                     //indexer(2);
                 }
-                if (time.now(TimeUnit.SECONDS) - timer == 7) {
-                    //feedOff();
-                    indexer(2);
-                }
                 if (time.now(TimeUnit.SECONDS) - timer == 8) {
+
+                    index = 2;
+                    /*if (index >4) {
+                        index =0;
+                    }*/
+                    indexer(index);
+                }
+                if (time.now(TimeUnit.SECONDS) - timer == 9) {
                     feedOn();
                 }
-                if (time.now(TimeUnit.SECONDS) - timer == 11) {
+                if (time.now(TimeUnit.SECONDS) - timer == 12) {
                     feedOff();
                     //indexer(4);
                 }
-                if (time.now(TimeUnit.SECONDS) - timer == 12) {
-                    //feedOff();
-                    indexer(4);
-                }
                 if (time.now(TimeUnit.SECONDS) - timer == 13) {
+                    index = 4;
+                   /* if (index >4 ) {
+                        index =0;
+                    }*/
+                    indexer(index);
+                }
+                if (time.now(TimeUnit.SECONDS) - timer == 14) {
                     feedOn();
                 }
-                if (time.now(TimeUnit.SECONDS) - timer == 16) {
+                if (time.now(TimeUnit.SECONDS) - timer == 17) {
                     feedOff();
 
 
                 }
-                if (time.now(TimeUnit.SECONDS) - timer == 17) {
+                if (time.now(TimeUnit.SECONDS) - timer == 18) {
 
                     launcher.setVelocity(0, AngleUnit.DEGREES);
-                    indexer(0);
-
+                    //indexer(3);
+                    index = 3;
+                    indexer(index);
                     // return true;
 
                 }
