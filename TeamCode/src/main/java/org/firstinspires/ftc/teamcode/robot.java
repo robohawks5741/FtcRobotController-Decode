@@ -90,7 +90,7 @@ public class robot extends LinearOpMode {
     int lastPosRight;
     long lastTime;
     int index = 0;
-    int power = 3000;
+    int power = 5000;
     PinpointLocalizer PinpointLocalizer;
     IMU imu;
     public static class Params {
@@ -137,9 +137,10 @@ public class robot extends LinearOpMode {
         PinpointLocalizer = new PinpointLocalizer(hardwareMap, 0.00072471557, new Pose2d(0, 0, 0));
         PinpointLocalizer.driver.resetPosAndIMU();
         pid = new PID();
+        //launcher.setVelocityPIDFCoefficients(10, 0.5, 0, 5);
       //  launchFeed.setDirection(DcMotorSimple.Direction.FORWARD);
 
-       // imu = hardwareMap.get(IMU.class, "imu");
+        imu = hardwareMap.get(IMU.class, "imu");
 
         RevHubOrientationOnRobot orientationOnRobot = new
                 RevHubOrientationOnRobot(
@@ -157,6 +158,7 @@ public class robot extends LinearOpMode {
         double startY = 0;
         double startTheta = 0;
         PinpointLocalizer.setPose(new Pose2d(startX, startY, startTheta));
+        imu.initialize(new IMU.Parameters(orientationOnRobot));
         //aprilTag = new AprilTag("Webcam 1", hardwareMap);
         waitForStart();
         drive = new MecanumDrive(hardwareMap, new Pose2d(0, 0, 0));
@@ -228,7 +230,7 @@ public class robot extends LinearOpMode {
 
     // --- BUILT-IN PIDF VELOCITY CONTROL ---
     public void setLaunchRPM(double launchRPM) {
-        launcher.setVelocity(rpmToTicksPerSec(launchRPM), AngleUnit.DEGREES);
+        launcher.setVelocity(0.05*launchRPM, AngleUnit.DEGREES);
 
     }
 
