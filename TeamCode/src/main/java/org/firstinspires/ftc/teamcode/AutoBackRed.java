@@ -3,7 +3,7 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 
 @Autonomous(name = "AutoBackRed", group = "Robot")
-public class AutuBackRed extends AutoBackBlue{
+public class AutoBackRed extends AutoBackBlue{
     public static Params PARAMS = AutoBackBlue.PARAMS;
     @Override
     public void runOpMode() throws InterruptedException {

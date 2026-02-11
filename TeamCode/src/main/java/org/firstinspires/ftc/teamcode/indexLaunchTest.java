@@ -268,7 +268,6 @@ public class indexLaunchTest extends robot {
             telemetry.addData("Kd x1000", Kd*1000);
            // telemetry.addData("turret1pow", turret1.getController().getPwmStatus());
             telemetry.update();
-
         }
     }
    
