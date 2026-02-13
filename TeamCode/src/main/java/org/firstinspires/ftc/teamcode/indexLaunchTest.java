@@ -29,17 +29,26 @@ import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 import org.firstinspires.ftc.teamcode.subsystems.MecanumDrive;
 
+import java.util.concurrent.TimeUnit;
+
 @TeleOp(name="indexLaunchTest")
 public class indexLaunchTest extends robot {
 
     // A timer to calculate the change in time (delta time)
     ElapsedTime timer = new ElapsedTime();
+    ElapsedTime changedTimer = new ElapsedTime();
+    long lastChangedTime = 0;
     @Override
     public void runOpMode() throws InterruptedException {
         //DcMotorEx motor = hardwareMap.get(DcMotorEx.class, "motor");
         super.runOpMode();
 
       //  launcher.setVelocityPIDFCoefficients(0.4,0.001,0.3, 4);
+        double Kp = PARAMS.Kp;
+        double Ki = PARAMS.Ki;
+        //double Kd = 0.000000045;
+        double Kd = PARAMS.Kd;
+        double changingValue = 0;
 
         boolean x = false;
         boolean launchTriggered = false;
@@ -144,16 +153,31 @@ public class indexLaunchTest extends robot {
                 indexer(index);
             }
 
-            if (gamepad1.dpad_left) {
-                //power -= 100;
-            } else if (gamepad1.dpad_right) {
-               // power += 100;
+            if (changedTimer.now(TimeUnit.SECONDS) > lastChangedTime + 1) {
+                if (gamepad1.dpad_left) {
+                    changingValue -= 1;
+                    if (changingValue < 0) changingValue = 2;
+                    lastChangedTime = changedTimer.now(TimeUnit.SECONDS);
+                } else if (gamepad1.dpad_right) {
+                    changingValue += 1;
+                    if (changingValue > 2) changingValue = 0;
+                    lastChangedTime = changedTimer.now(TimeUnit.SECONDS);
+                }
             }
-            if (gamepad1.dpad_up){
-                power += 100;
-            } else if (gamepad1.dpad_down) {
-                power -= 100;
+//            if (gamepad1.dpad_up) {
+//                power += 100;
+//            } else if (gamepad1.dpad_down) {
+//                power -= 100;
+//            }
+            double changeValue = (gamepad1.dpad_up ? 0.01 : 0) + (gamepad1.dpad_down ? -0.01 : 0);
+            if (changingValue == 0) {
+                Kp += changeValue;
+            } else if (changingValue == 1) {
+                Ki += changeValue;
+            } else if (changingValue == 2) {
+                Kd += changeValue;
             }
+
             if (gamepad1.cross) {
                 if (!launchTriggered) {
                   //  Actions.runBlocking(new launchCycle()/*, new setPowers()*/);
@@ -187,11 +211,7 @@ public class indexLaunchTest extends robot {
 
                 }else if (!gamepad1.right_bumper) {
                     turret1.setPower(-gamepad1.left_stick_x);
-                    pid.lastError = 0;
-                    pid.integralSum = 0;
-                    pid.time = new ElapsedTime();
-
-                    //  turret2.setPower(gamepad1.left_stick_x);
+                    //turret2.setPower(gamepad1.left_stick_x);
                 }else {
                      turret1.setPower(0);
                     // turret2.setPower(0);
@@ -263,27 +283,50 @@ public class indexLaunchTest extends robot {
             }
             telemetry.addData("artifacts", artifacts);
             telemetry.addData("index", index);
-            telemetry.addData("color G", color.green());
-            telemetry.addData("color P", (color.red()+color.blue())/2);
+//            telemetry.addData("color G", color.green());
+//            telemetry.addData("color P", (color.red()+color.blue())/2);
             telemetry.addData("PPX", drive.localizer.getPose().position.x);
             telemetry.addData("PPY", drive.localizer.getPose().position.y);
             telemetry.addData("PPYaw", Math.toDegrees(drive.localizer.getPose().heading.toDouble()));
-            telemetry.addData("Power", launcher.getPower());
-            telemetry.addData("Launch Current", launcher.getCurrent(CurrentUnit.AMPS));
-            telemetry.addData("RPM", launcher.getVelocity(AngleUnit.DEGREES));
-            telemetry.addData("RPM Adjusted", launcher.getVelocity(AngleUnit.DEGREES)*20);
-            telemetry.addData("TargetRPM", gamepad1.right_stick_y*6000);
-            telemetry.addData("Right Stick Y", gamepad1.right_stick_y);
-            telemetry.addData("feedPos", feed.getPosition());
-            //telemetry.addData("Left Trigger", gamepad1.left_trigger);
-            telemetry.addData("Current", launcher.getCurrent(CurrentUnit.AMPS));
-            telemetry.addData("Hood Position", hood.getPosition());
-            telemetry.addData("turret1", turret1.getPower());
-            //telemetry.addData("turret2", turret2.getPower());
-
-            telemetry.addData("Kp", PARAMS.Kp);
-            telemetry.addData("Ki x1000", PARAMS.Ki*1000);
-            telemetry.addData("Kd x1000", PARAMS.Kd*1000);
+              telemetry.addData("calculated angle to red", Math.atan2(drive.localizer.getPose().position.x-(-58.31), drive.localizer.getPose().position.y - (55.64)));
+//            telemetry.addData("turretYawRobot", turretYawRobot);
+//            telemetry.addData("turretYawField", turretYawRobot+drive.localizer.getPose().heading.toDouble());
+//            telemetry.addData("turretYawField2", turretYawRobot2);
+              if (result != null) {
+                telemetry.addData("X", result.getBotpose().getPosition().x);
+                telemetry.addData("Y", result.getBotpose().getPosition().y);
+                telemetry.addData("TurretHeading", result.getBotpose().getOrientation().getYaw(AngleUnit.DEGREES));
+                telemetry.addData("turretYaw3", result.getTx());
+            }
+            //telemetry.addData("feedPos", feed.getPosition())
+            assert result != null;
+            if (!result.getFiducialResults().isEmpty()) {telemetry.addData("fiducial result Tx", result.getFiducialResults().get(0).getTargetXDegrees());}
+//            telemetry.addData("TxNC", result.getTxNC());
+//            telemetry.addData("Tx", result.getTx());
+//            telemetry.addData("Power", launcher.getPower());
+//            telemetry.addData("Launch Current", launcher.getCurrent(CurrentUnit.AMPS));
+//            telemetry.addData("RPM", launcher.getVelocity(AngleUnit.DEGREES));
+//            telemetry.addData("RPM Adjusted", launcher.getVelocity(AngleUnit.DEGREES)*20);
+//            telemetry.addData("TargetRPM", gamepad1.right_stick_y*6000);
+//            telemetry.addData("Right Stick Y", gamepad1.right_stick_y);
+//            telemetry.addData("feedPos", feed.getPosition());
+//            telemetry.addData("Left Trigger", gamepad1.left_trigger);
+//            telemetry.addData("Current", launcher.getCurrent(CurrentUnit.AMPS));
+//            telemetry.addData("Hood Position", hood.getPosition());
+//            telemetry.addData("turret1", turret1.getPower());
+//            telemetry.addData("turret2", turret2.getPower());
+            telemetry.addLine();
+            if (changingValue == 0) {
+                telemetry.addData("Currently changing", "Kp");
+            } else if (changingValue == 1) {
+                telemetry.addData("Currently changing", "Ki");
+            } else if (changingValue == 2) {
+                telemetry.addData("Currently changing", "Kd");
+            }
+            telemetry.addLine();
+            telemetry.addData("Kp", Kp);
+            telemetry.addData("Ki", Ki);
+            telemetry.addData("Kd", Kd);
            // telemetry.addData("turret1pow", turret1.getController().getPwmStatus());
             telemetry.update();
             TelemetryPacket packet = new TelemetryPacket();
