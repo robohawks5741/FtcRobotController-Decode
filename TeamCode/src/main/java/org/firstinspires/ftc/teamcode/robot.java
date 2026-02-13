@@ -32,12 +32,12 @@ package org.firstinspires.ftc.teamcode;
 
 import static androidx.core.math.MathUtils.clamp;
 import static java.lang.Math.abs;
-import static java.lang.Math.toDegrees;
 
 import androidx.annotation.NonNull;
 
 import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
 import com.acmerobotics.roadrunner.Action;
+//import com.qualcomm.ftcrobotcontroller.
 import com.acmerobotics.roadrunner.Pose2d;
 import com.acmerobotics.roadrunner.PoseVelocity2d;
 import com.acmerobotics.roadrunner.Vector2d;
@@ -47,6 +47,7 @@ import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
@@ -60,6 +61,8 @@ import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @TeleOp(name = "Robot", group = "Robot")
@@ -67,14 +70,15 @@ import java.util.concurrent.TimeUnit;
 public class robot extends LinearOpMode {
 
     AprilTag aprilTag;
+    AnalogInput indexFB;
     DcMotorEx launcher;
     double turnVector;
     DcMotorEx intake;
     CRServo launchFeedL;
     CRServo launchFeedR;
-    Servo indexer;
-    CRServo turret1;
-    CRServo turret2;
+    CRServo indexer;
+    public CRServo turret1;
+    //CRServo turret2;
     Servo hood;
     Servo feed;
     ColorSensor color;
@@ -91,17 +95,26 @@ public class robot extends LinearOpMode {
     long lastTime;
     int index = 0;
     int power = 5000;
+    boolean isLaunching;
     PinpointLocalizer PinpointLocalizer;
     IMU imu;
+    double lastIndexPosition;
+    double totalIndexRotation = 0;
+    int totalRotations = 0;
+    boolean indexCC = true;
     public static class Params {
         public double beginPosX = 62;
         public double beginPosY = -22.5;
-        public double Kp = 0.0045;
-        public double Ki = 0.0001028;
+        public double Kp = 0.01;
+        public double Ki = 0.0000001;
         //double Kd = 0.000000045;
-        public double Kd = 0.0000135;
+        public double Kd = 0.4;
+        public double indexerP = 0.0001;
+        public double indexerI = 0.000;
+        public double indexerD = 0.000;
+        public int indexCycleStart = 0;
     }
-    public static AutoBackBlue.Params PARAMS = new AutoBackBlue.Params();
+    public static robot.Params PARAMS = new robot.Params();
 
 
 
@@ -112,35 +125,47 @@ public class robot extends LinearOpMode {
         return new Pose2d(x, y, theta);
     }
     PID pid;
+    PID indexPID;
     Limelight3A limelight;
     LLResult result;
+
+    List<Integer> artifacts;
     @Override
     public void runOpMode() throws InterruptedException {
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
         result = limelight.getLatestResult();
         //pid = new PID();
         hood = hardwareMap.get(Servo.class, "hood");
+        indexFB = hardwareMap.get(AnalogInput.class, "indexFB");
         // Servo feed = hardwareMap.get(Servo.class, "feed");
         intake = hardwareMap.get(DcMotorEx.class, "intake");
         turret1 = hardwareMap.get(CRServo.class, "turret1");
-        turret2 = hardwareMap.get(CRServo.class, "turret2");
+        //turret2 = hardwareMap.get(CRServo.class, "turret2");
         feed = hardwareMap.get(Servo.class, "feed");
         launchFeedL = hardwareMap.get(CRServo.class, "launchFeedL");
         launchFeedR = hardwareMap.get(CRServo.class, "launchFeedR");
         launcher = hardwareMap.get(DcMotorEx.class, "launcher");
-        indexer = hardwareMap.get(Servo.class, "index");
+        indexer = hardwareMap.get(CRServo.class, "index");
         color = hardwareMap.get(ColorSensor.class, "color");
         //  turret1.scaleRange(0.25, .75);
         //turret2.scaleRange(.25, 0.75);
+       // indexer.scaleRange(0, 1);
         turret1.setDirection(CRServo.Direction.REVERSE);
-        turret2.setDirection(CRServo.Direction.REVERSE);
+       // turret2.setDirection(CRServo.Direction.REVERSE);
         PinpointLocalizer = new PinpointLocalizer(hardwareMap, 0.00072471557, new Pose2d(0, 0, 0));
         PinpointLocalizer.driver.resetPosAndIMU();
         pid = new PID();
+        indexPID = new PID();
         //launcher.setVelocityPIDFCoefficients(10, 0.5, 0, 5);
       //  launchFeed.setDirection(DcMotorSimple.Direction.FORWARD);
 
         imu = hardwareMap.get(IMU.class, "imu");
+        lastIndexPosition = (indexFB.getVoltage() / 3.3) * 360.0;
+        artifacts = Arrays.asList(0, 0, 0);
+        //0 = empty
+        //1 = purple
+        //2 = green
+
 
         RevHubOrientationOnRobot orientationOnRobot = new
                 RevHubOrientationOnRobot(
@@ -202,7 +227,36 @@ public class robot extends LinearOpMode {
             indexer(0);
         }
     }
+    public void setIndexPosition(double targetPosition) {
+       // indexer.setPosition(targetPosition);
+        double currentAngle = (indexFB.getVoltage() / 3.3) * 360.0;
+       // totalIndexRotation = currentAngle;
+        double indexerTargetAngle = targetPosition*360;
+        if (lastIndexPosition-currentAngle < -10){
+            totalRotations += 1;
+        } else if (currentAngle - lastIndexPosition < 0) {
+            totalRotations -=1;
+        }
+        totalIndexRotation = currentAngle + totalRotations*360;
+        double power;
+        power = pid.indexPID(PARAMS.indexerP, PARAMS.indexerI, PARAMS.indexerD, indexerTargetAngle + 360*totalRotations, totalIndexRotation);
 
+        // Apply a deadband to prevent the servo from whining when it's at the target
+        if (Math.abs(indexerTargetAngle - currentAngle) < 2.0) { // 2-degree tolerance
+            power = 0;
+        }
+
+        // Set the CR Servo power
+        indexer.setPower(power);
+        lastIndexPosition = currentAngle;
+        telemetry.addData("Indexer Target", indexerTargetAngle);
+        telemetry.addData("Indexer Current", currentAngle);
+        telemetry.addData("Indexer Total", totalIndexRotation);
+        telemetry.addData("Indexer Power", power);
+
+
+    }
+    // --- ROBOT)
     public void driveFieldRelative(double forward, double right, double rotate) {
         double theta = Math.atan2(forward, right);
         double r = Math.hypot(right, forward);
@@ -221,6 +275,7 @@ public class robot extends LinearOpMode {
                 ),
                 -theta
         ));
+
     }
 
     public void setIntakePower(double power) {
@@ -230,7 +285,12 @@ public class robot extends LinearOpMode {
 
     // --- BUILT-IN PIDF VELOCITY CONTROL ---
     public void setLaunchRPM(double launchRPM) {
-        launcher.setVelocity(0.05*launchRPM, AngleUnit.DEGREES);
+        launcher.setVelocity(-launchRPM/19.1, AngleUnit.DEGREES);
+        if (launchRPM >0) {
+            isLaunching = true;
+        } else {
+            isLaunching = false;
+        }
 
     }
 
@@ -240,43 +300,53 @@ public class robot extends LinearOpMode {
 
     public void indexer(int position) {
         switch (position){
-
+            //number refers to which arm is where
+            //eg. "1 at launch" means that arm 1 is at the launch and slot 1 is at the intake
             case 1:
                 //3 at launch
-                indexer.setPosition(0.167);
+                //setIndexPosition(0.167);
+                pid.indexReset();
+                setIndexPosition(0.21);
+
                 break;
             case 2:
                 //2 at intake
-                indexer.setPosition(0.375);
+                pid.indexReset();
+                setIndexPosition(0.375);
                 break;
 
             case 3:
-                //1 at launch
-                indexer.setPosition(.55);
-
+                pid.indexReset();
+                setIndexPosition(0.60);
                 break;
             case 4:
                 //3 at intake
-                indexer.setPosition(0.75);
+                pid.indexReset();
+                setIndexPosition(0.74);
                 break;
             case 5:
                 //2 at launch
-                indexer.setPosition(0.925);
+                //setIndexPosition(0.925);
+                pid.indexReset();
+                setIndexPosition(1.0);
                 break;
+
             case 0:
                 //1 at intake
-                indexer.setPosition(0);
+                pid.indexReset();
+                setIndexPosition(0);
                 break;
             default:
                 //1 at intake
-                indexer.setPosition(0.0);
+                pid.indexReset();
+                setIndexPosition(0.0);
         }
     }
     public class turretTrack implements Action {
         @Override
         public boolean run(@NonNull TelemetryPacket telemetryPacket) {
             while (opModeIsActive()) {
-                turret2.setPower(-pid.PIDControl(PARAMS.Kp, PARAMS.Ki, PARAMS.Kd, 0.0, limelight.getLatestResult().getTx()));
+              //  turret2.setPower(-pid.PIDControl(PARAMS.Kp, PARAMS.Ki, PARAMS.Kd, 0.0, limelight.getLatestResult().getTx()));
                 turret1.setPower(pid.PIDControl(PARAMS.Kp, PARAMS.Ki, PARAMS.Kd, 0.0, limelight.getLatestResult().getTx()));
                 if (abs(limelight.getLatestResult().getTx()) < 2) {
                     break;
@@ -286,16 +356,63 @@ public class robot extends LinearOpMode {
         }
     }
     public void feedOn() {
-        feed.setPosition(0.03);
-        launchFeedL.setPower(-1);
-        launchFeedR.setPower(1);
+        feed.setPosition(0.2);
+      //  launchFeedL.setPower(-1);
+        //launchFeedR.setPower(1);
+        intake.setPower(1);
 
 
     }
     public void feedOff() {
-        feed.setPosition(0.22);
-        launchFeedL.setPower(0);
-        launchFeedR.setPower(0);
+        feed.setPosition(0.3);
+        //launchFeedL.setPower(0);
+        //launchFeedR.setPower(0);
+        intake.setPower(0);
+    }
+    public void colorLogger() {
+        int intakeSlotContents;
+        int offset = -1;
+        //0 = empty
+        //1 = purple
+        //2 = green
+        double purple = (color.red()+color.blue())/2;
+        double green = color.green();
+        if (color.green() > 200 && green - purple > 100) {
+            intakeSlotContents = 2;
+        } else if (purple >200 && purple - green > 100) {
+            intakeSlotContents = 1;
+        } else {
+            intakeSlotContents = 0;
+        }
+        if (isLaunching || intake.getPower() >0.1) {
+            switch (index) {
+                case 1:
+                    if (isLaunching) {
+                        artifacts.set(0, 0);
+                    }
+                    break;
+                case 2:
+                    artifacts.set(1, intakeSlotContents);
+                    break;
+                case 3:
+                    if (isLaunching) {
+                        artifacts.set(1, 0);
+                    }
+                    break;
+                case 4:
+                    artifacts.set(2, intakeSlotContents);
+                    break;
+                case 5:
+                    if (isLaunching) {
+                        artifacts.set(2, 0);
+                    }
+                    break;
+                case 0:
+                    artifacts.set(0, intakeSlotContents);
+                    break;
+            }
+        }
+        //telemetry.addData("artifacts", artifacts);
     }
     public class launchCycle implements Action {
         @Override
@@ -309,10 +426,12 @@ public class robot extends LinearOpMode {
             double shortDelay;
             feedOff();
             while (opModeIsActive()) {
-                intake.setPower(0.2);
+                colorLogger();
+                intake.setPower(1);
                 telemetry.addData("launchCycle Running", "");
                 //telemetry.addData("unadjusted RPM", launcher.getVelocity(AngleUnit.DEGREES)/6);
                 telemetry.addData("LAUNCH RPM", launcher.getVelocity(AngleUnit.DEGREES));
+
                 telemetry.update();
                 drive.setDrivePowers(new PoseVelocity2d(
                         new Vector2d(
@@ -327,12 +446,12 @@ public class robot extends LinearOpMode {
                      */
                     //turret2.setPosition((gamepad1.left_stick_x+0.5));
                     turret1.setPower(-gamepad1.left_stick_x);
-                    turret2.setPower(gamepad1.left_stick_x);
+                    //turret2.setPower(gamepad1.left_stick_x);
                     //turret1.setPower();
                     telemetry.addLine("Turret Running");
                 } else {
                     turret1.setPower(0);
-                    turret2.setPower(0);
+                    //turret2.setPower(0);
                 }
                 if (gamepad1.left_bumper){
                     hood.setPosition(clamp(gamepad1.left_stick_y, 0.25, 0.95));
@@ -377,7 +496,7 @@ public class robot extends LinearOpMode {
                 }
                 if (time.now(TimeUnit.SECONDS) - timer == 18) {
 
-                    launcher.setVelocity(0, AngleUnit.DEGREES);
+                    setLaunchRPM(0);
                     //indexer(3);
                     index = 3;
                     indexer(index);
@@ -388,7 +507,87 @@ public class robot extends LinearOpMode {
                     intake.setPower(0.0);
                     break;
                 }
+
             }
+            return false;
+        }
+    }
+    public class newLaunchCycle implements  Action {
+        @Override
+        public boolean run(@NonNull TelemetryPacket telemetryPacket) {
+            ElapsedTime time = new ElapsedTime(ElapsedTime.Resolution.SECONDS);
+            double timer = time.now(TimeUnit.SECONDS);
+            setLaunchRPM(power);
+            index = 0;
+            indexer(index);
+            double longDelay;
+            double shortDelay;
+            feedOff();
+            while (opModeIsActive()) {
+                colorLogger();
+                intake.setPower(1);
+                telemetry.addData("launchCycle Running", "");
+                //telemetry.addData("unadjusted RPM", launcher.getVelocity(AngleUnit.DEGREES)/6);
+                telemetry.addData("LAUNCH RPM", launcher.getVelocity(AngleUnit.DEGREES));
+                telemetry.addData("LAUNCH RPM ADJ", launcher.getVelocity(AngleUnit.DEGREES) * 19.1);
+                telemetry.addData("artifacts", artifacts);
+                telemetry.addData("index", index);
+                telemetry.addData("color", color.green());
+                telemetry.update();
+                drive.setDrivePowers(new PoseVelocity2d(
+                        new Vector2d(
+                                -gamepad2.left_stick_y,
+                                -gamepad2.left_stick_x
+                        ),
+                        -gamepad2.right_stick_x
+                ));
+                if (gamepad1.right_bumper){
+                    //   if
+                    /* turret1.setPosition((gamepad1.left_stick_x+0.5));
+                     */
+                    //turret2.setPosition((gamepad1.left_stick_x+0.5));
+                    turret1.setPower(-gamepad1.left_stick_x);
+                    //turret2.setPower(gamepad1.left_stick_x);
+                    //turret1.setPower();
+                    telemetry.addLine("Turret Running");
+                } else {
+                    turret1.setPower(0);
+                    //turret2.setPower(0);
+                }
+                if (gamepad1.left_bumper){
+                    hood.setPosition(clamp(gamepad1.left_stick_y, 0.25, 0.95));
+                }
+                hood.setPosition(0.25);
+
+                if (time.now(TimeUnit.SECONDS) - timer == 1) {
+                    feedOn();
+                }
+                if (time.now(TimeUnit.SECONDS) - timer == 3) {
+                    index = PARAMS.indexCycleStart;
+                    indexer(index);
+                }
+                if (time.now(TimeUnit.SECONDS) - timer == 4) {
+                    index += 2;
+                    if (index > 5) {
+                        index = 1;
+                    }
+                    indexer(index);
+                }
+                if (time.now(TimeUnit.SECONDS) - timer == 5) {
+
+                    index += 2;
+                    indexer(index);
+                }
+                if (time.now(TimeUnit.SECONDS) - timer == 8) {
+                    index = PARAMS.indexCycleStart;
+                    indexer(index);
+                    feedOff();
+                    break;
+                }
+
+
+            }
+            setLaunchRPM(0);
             return false;
         }
     }
@@ -411,4 +610,5 @@ public class robot extends LinearOpMode {
             return false;
         }
     }
+
 }

@@ -4,6 +4,7 @@ import static androidx.core.math.MathUtils.clamp;
 import static java.lang.Math.abs;
 import static java.lang.Math.floor;
 
+import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
 import com.acmerobotics.roadrunner.Action;
 import com.acmerobotics.roadrunner.ParallelAction;
@@ -15,6 +16,7 @@ import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
@@ -23,6 +25,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 import org.firstinspires.ftc.teamcode.subsystems.MecanumDrive;
 
@@ -37,10 +40,7 @@ public class indexLaunchTest extends robot {
         super.runOpMode();
 
       //  launcher.setVelocityPIDFCoefficients(0.4,0.001,0.3, 4);
-        double Kp = 0.0045;
-        double Ki = 0.0001028;
-        //double Kd = 0.000000045;
-        double Kd = 0.0000135;
+
         boolean x = false;
         boolean launchTriggered = false;
 
@@ -93,13 +93,14 @@ public class indexLaunchTest extends robot {
             result = limelight.getLatestResult();
             YawPitchRollAngles orientation = imu.getRobotYawPitchRollAngles();
             limelight.updateRobotOrientation(orientation.getYaw());
+            colorLogger();
             if (gamepad1.right_trigger > 0.0) {
                 setLaunchRPM(power);
                //launcher.setVelocity(150, AngleUnit.DEGREES);
             }else {
-                launcher.setPower(0.0);
+                setLaunchRPM(0);
             }
-            if (gamepad1.left_trigger > 0 && index%2 == 0) {
+            if (gamepad1.left_trigger > 0 /*&& index%2 == 1*/) {
                 feedOn();
                 /*launchFeedL.setPower(-1);
                 launchFeedR.setPower(1);
@@ -114,11 +115,11 @@ public class indexLaunchTest extends robot {
                 setIntakePower(1);
             }else if(gamepad2.left_trigger >0) {
                 setIntakePower(-1);
-            }else {
+            }else if (!(gamepad1.left_trigger > 0)){
                 setIntakePower(0);
             }
 
-            if (gamepad1.x && !x && gamepad1.left_trigger ==0){
+          /*  if (gamepad1.x && !x && gamepad1.left_trigger ==0){
                if (index <5) {
                    index += 1;
                } else {
@@ -128,16 +129,18 @@ public class indexLaunchTest extends robot {
                x = true;
             } else if (!gamepad1.x) {
                 x = false;
-            }
+            }*/
 
             if (gamepad1.square) {
-                index = 1;
+                index = 0;
                 indexer(index);
             } else if (gamepad1.triangle) {
-                index = 3;
+                index = 2;
                 indexer(index);
             } else if (gamepad1.circle) {
-                index = 5;
+                index = 4;
+                indexer(index);
+            } else {
                 indexer(index);
             }
 
@@ -154,7 +157,7 @@ public class indexLaunchTest extends robot {
             if (gamepad1.cross) {
                 if (!launchTriggered) {
                   //  Actions.runBlocking(new launchCycle()/*, new setPowers()*/);
-                    new launchCycle().run(new TelemetryPacket());
+                    new newLaunchCycle().run(new TelemetryPacket());
                     launchTriggered = true;
                 }
                 //new launchCycle();
@@ -177,16 +180,27 @@ public class indexLaunchTest extends robot {
                 // telemetry.addData("Target Y", ty);
                 //telemetry.addData("Target Area", ta);
                 if (gamepad1.right_bumper) {
-                    turret2.setPower(-pid.PIDControl(PARAMS.Kp, PARAMS.Ki, PARAMS.Kd, 0.0, result.getTx()));
-                    turret1.setPower(pid.PIDControl(PARAMS.Kp, PARAMS.Ki, PARAMS.Kd, 0.0, result.getTx()));
+                    // Create a PIDFController with gains kP, kI, kD, and kF
+
+// Inside loop:
+                    turret1.setPower(-pid.PIDControl(PARAMS.Kp, PARAMS.Ki, PARAMS.Kd, 0.0, limelight.getLatestResult().getTx()));
+
                 }else if (!gamepad1.right_bumper) {
                     turret1.setPower(-gamepad1.left_stick_x);
-                    turret2.setPower(gamepad1.left_stick_x);
+                    pid.lastError = 0;
+                    pid.integralSum = 0;
+                    pid.time = new ElapsedTime();
+
+                    //  turret2.setPower(gamepad1.left_stick_x);
                 }else {
                      turret1.setPower(0);
-                     turret2.setPower(0);
+                    // turret2.setPower(0);
                  }
+
             } else {
+                pid.lastError = 0;
+                pid.integralSum = 0;
+                pid.time = new ElapsedTime();
                 telemetry.addData("Limelight", "No Targets");
                 //turret2.getController().getServoPosition(2);
                /* if (gamepad1.cross) {
@@ -205,12 +219,12 @@ public class indexLaunchTest extends robot {
                      */
                     //turret2.setPosition((gamepad1.left_stick_x+0.5));
                     turret1.setPower(-gamepad1.left_stick_x);
-                    turret2.setPower(gamepad1.left_stick_x);
+                  //  turret2.setPower(gamepad1.left_stick_x);
                     //turret1.setPower();
                     telemetry.addLine("Turret Running");
                 } else {
                     turret1.setPower(0);
-                    turret2.setPower(0);
+                   // turret2.setPower(0);
                 }
             }
             if (abs(TX) < 4) {
@@ -222,6 +236,13 @@ public class indexLaunchTest extends robot {
                 turret1.setPower(0);
                 turret2.setPower(0);
             }*/
+            if (gamepad2.circle) {
+                limelight.pipelineSwitch(1);
+                telemetry.addData("ID", result.getFiducialResults().get(0).getFiducialId());
+            } else {
+                limelight.pipelineSwitch(0);
+            }
+
             drive.setDrivePowers(new PoseVelocity2d(
                     new Vector2d(
                             -gamepad2.left_stick_y,
@@ -229,27 +250,24 @@ public class indexLaunchTest extends robot {
                     ),
                     -gamepad2.right_stick_x
             ));
+            if (result != null) {
+                Pose3D botpose = result.getBotpose();
+                Pose3D botposeMT2 = result.getBotpose_MT2();
+                telemetry.addData("tx", result.getTx());
+                //telemetry.addData("rz", result.getRz());
+                telemetry.addData("ty", result.getTy());
+                telemetry.addData("ta", result.getTa());
+                telemetry.addData("Botpose", botpose.toString());
+                telemetry.addData("BotposeMT2", botposeMT2.toString());
+
+            }
+            telemetry.addData("artifacts", artifacts);
             telemetry.addData("index", index);
             telemetry.addData("color G", color.green());
             telemetry.addData("color P", (color.red()+color.blue())/2);
             telemetry.addData("PPX", drive.localizer.getPose().position.x);
             telemetry.addData("PPY", drive.localizer.getPose().position.y);
             telemetry.addData("PPYaw", Math.toDegrees(drive.localizer.getPose().heading.toDouble()));
-            telemetry.addData("calculated angle to red", Math.atan2(drive.localizer.getPose().position.x-(-58.31), drive.localizer.getPose().position.y - (55.64)));
-            telemetry.addData("turretYawRobot", turretYawRobot);
-            telemetry.addData("turretYawField", turretYawRobot+drive.localizer.getPose().heading.toDouble());
-            telemetry.addData("turretYawField2", turretYawRobot2);
-            if (result != null) {
-                telemetry.addData("X", result.getBotpose().getPosition().x);
-                telemetry.addData("Y", result.getBotpose().getPosition().y);
-                telemetry.addData("TurretHeading", result.getBotpose().getOrientation().getYaw(AngleUnit.DEGREES));
-                telemetry.addData("turretYaw3", result.getTx());
-            }
-            //telemetry.addData("feedPos", feed.getPosition())
-            assert result != null;
-            if (!result.getFiducialResults().isEmpty()) {telemetry.addData("fiducial result Tx", result.getFiducialResults().get(0).getTargetXDegrees());}
-            telemetry.addData("TxNC", result.getTxNC());
-            telemetry.addData("Tx", result.getTx());
             telemetry.addData("Power", launcher.getPower());
             telemetry.addData("Launch Current", launcher.getCurrent(CurrentUnit.AMPS));
             telemetry.addData("RPM", launcher.getVelocity(AngleUnit.DEGREES));
@@ -261,13 +279,17 @@ public class indexLaunchTest extends robot {
             telemetry.addData("Current", launcher.getCurrent(CurrentUnit.AMPS));
             telemetry.addData("Hood Position", hood.getPosition());
             telemetry.addData("turret1", turret1.getPower());
-            telemetry.addData("turret2", turret2.getPower());
+            //telemetry.addData("turret2", turret2.getPower());
 
-            telemetry.addData("Kp", Kp);
-            telemetry.addData("Ki x1000", Ki*1000);
-            telemetry.addData("Kd x1000", Kd*1000);
+            telemetry.addData("Kp", PARAMS.Kp);
+            telemetry.addData("Ki x1000", PARAMS.Ki*1000);
+            telemetry.addData("Kd x1000", PARAMS.Kd*1000);
            // telemetry.addData("turret1pow", turret1.getController().getPwmStatus());
             telemetry.update();
+            TelemetryPacket packet = new TelemetryPacket();
+            packet.fieldOverlay().setStroke("#3F51B5");
+            Drawing.drawRobot(packet.fieldOverlay(), drive.localizer.getPose());
+            FtcDashboard.getInstance().sendTelemetryPacket(packet);
 
         }
     }

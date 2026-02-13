@@ -16,12 +16,10 @@ public class AutoBackBlue extends robot {
     public static class Params {
         public double beginPosX = 62;
         public double beginPosY = -22.5;
-        public double Kp = 0.0045;
-        public double Ki = 0.0001028;
-        //double Kd = 0.000000045;
-        public double Kd = 0.0000135;
-        public double targetX = -20;
-        public double targetY = -30;
+        public double targetX = -24;
+        public double targetY = -34;
+        public double endX = 30;
+        public double endY = -20;
         public double targetHeading = -135;
     }
     public static Params PARAMS = new Params();
@@ -93,11 +91,13 @@ public class AutoBackBlue extends robot {
                             .strafeTo(new Vector2d(PARAMS.targetX,PARAMS.targetY))
                             .endTrajectory()
                             .turnTo(Math.toRadians(PARAMS.targetHeading))
+                            .endTrajectory()
                             //.strafeTo(new Vector2d(62,-22.5))
 
                             //.endTrajectory()
                             //.splineToConstantHeading(new Vector2d(0,0), Math.toRadians(0))
-                            .build(),  new launchCycle()));
+                            .build(),  new newLaunchCycle(), drive.actionBuilder(drive.localizer.getPose()).turnTo(Math.toRadians(0)).strafeTo(new Vector2d(PARAMS.endX,PARAMS.endY)).endTrajectory().build())
+            );
             telemetry.addData("Status: ", "Done");
             telemetry.addData("PPX", drive.localizer.getPose().position.x);
             telemetry.addData("PPY", drive.localizer.getPose().position.y);
