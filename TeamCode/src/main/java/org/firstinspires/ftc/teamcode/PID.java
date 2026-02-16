@@ -61,6 +61,6 @@ public class PID {
     public void indexReset() {
         indexIntegralSum = 0;
         indexLastError = 0;
-        indexTime.reset();
+        indexTime = new ElapsedTime();
     }
 }

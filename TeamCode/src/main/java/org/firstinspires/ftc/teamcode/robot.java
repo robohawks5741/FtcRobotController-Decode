@@ -101,6 +101,7 @@ public class robot extends LinearOpMode {
     double lastIndexPosition;
     double totalIndexRotation = 0;
     int totalRotations = 0;
+    int rotationTicker = 0;
     boolean indexCC = true;
     public static class Params {
         public double beginPosX = 62;
@@ -109,9 +110,9 @@ public class robot extends LinearOpMode {
         public double Ki = 0.0000001;
         //double Kd = 0.000000045;
         public double Kd = 0.4;
-        public double indexerP = 0.0001;
-        public double indexerI = 0.000;
-        public double indexerD = 0.000;
+        public double indexerP = 0.00000025;
+        public double indexerI = 0.00;
+        public double indexerD = 0.0000005;
         public int indexCycleStart = 0;
     }
     public static robot.Params PARAMS = new robot.Params();
@@ -229,17 +230,23 @@ public class robot extends LinearOpMode {
     }
     public void setIndexPosition(double targetPosition) {
        // indexer.setPosition(targetPosition);
+      //  double targetPosition
         double currentAngle = (indexFB.getVoltage() / 3.3) * 360.0;
        // totalIndexRotation = currentAngle;
         double indexerTargetAngle = targetPosition*360;
-        if (lastIndexPosition-currentAngle < -10){
+       /* if (indexerTargetAngle == 0 && currentAngle > 260) {
+            indexerTargetAngle = 360;
+        }*/
+
+        if (lastIndexPosition-currentAngle >=300){
             totalRotations += 1;
-        } else if (currentAngle - lastIndexPosition < 0) {
+        } else if (lastIndexPosition - currentAngle <= -300) {
             totalRotations -=1;
         }
         totalIndexRotation = currentAngle + totalRotations*360;
+        double totalTargetAngle = indexerTargetAngle + totalRotations*360;
         double power;
-        power = pid.indexPID(PARAMS.indexerP, PARAMS.indexerI, PARAMS.indexerD, indexerTargetAngle + 360*totalRotations, totalIndexRotation);
+        power = -pid.indexPID(PARAMS.indexerP, PARAMS.indexerI, PARAMS.indexerD, indexerTargetAngle, totalIndexRotation);
 
         // Apply a deadband to prevent the servo from whining when it's at the target
         if (Math.abs(indexerTargetAngle - currentAngle) < 2.0) { // 2-degree tolerance
@@ -247,12 +254,15 @@ public class robot extends LinearOpMode {
         }
 
         // Set the CR Servo power
-        indexer.setPower(power);
+        indexer.setPower(clamp(power, -0.5, 0.5));
+
         lastIndexPosition = currentAngle;
         telemetry.addData("Indexer Target", indexerTargetAngle);
         telemetry.addData("Indexer Current", currentAngle);
         telemetry.addData("Indexer Total", totalIndexRotation);
+        telemetry.addData("Indexer Target Adjusted", indexerTargetAngle + 360*totalRotations);
         telemetry.addData("Indexer Power", power);
+        telemetry.addData("Indexer Rotations", totalRotations);
 
 
     }
@@ -561,24 +571,14 @@ public class robot extends LinearOpMode {
 
                 if (time.now(TimeUnit.SECONDS) - timer == 1) {
                     feedOn();
-                }
-                if (time.now(TimeUnit.SECONDS) - timer == 3) {
-                    index = PARAMS.indexCycleStart;
-                    indexer(index);
+                    indexer.setPower(0);
                 }
                 if (time.now(TimeUnit.SECONDS) - timer == 4) {
-                    index += 2;
-                    if (index > 5) {
-                        index = 1;
-                    }
-                    indexer(index);
+                   indexer.setPower(1);
                 }
-                if (time.now(TimeUnit.SECONDS) - timer == 5) {
 
-                    index += 2;
-                    indexer(index);
-                }
-                if (time.now(TimeUnit.SECONDS) - timer == 8) {
+                if (time.now(TimeUnit.SECONDS) - timer == 6) {
+                    //indexer.setPower(0);
                     index = PARAMS.indexCycleStart;
                     indexer(index);
                     feedOff();
