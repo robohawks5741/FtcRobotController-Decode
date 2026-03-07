@@ -14,13 +14,7 @@ import org.firstinspires.ftc.teamcode.subsystems.MecanumDrive;
 @Autonomous(name = "AutoBackBlue", group = "Robot")
 public class AutoBackBlue extends robot {
     public static class Params {
-        public double beginPosX = 62;
-        public double beginPosY = -22.5;
-        public double targetX = -24;
-        public double targetY = -34;
-        public double endX = 30;
-        public double endY = -20;
-        public double targetHeading = -135;
+
     }
     public static Params PARAMS = new Params();
 
@@ -45,19 +39,19 @@ public class AutoBackBlue extends robot {
         super.runOpMode();
         telemetry.addData("Status:", " Initialized");
         //super.runOpMode();
-        Pose2d beginPose = new Pose2d(PARAMS.beginPosX, PARAMS.beginPosY, Math.toRadians(180));
-
+        //Pose2d beginPose = new Pose2d(robot.PARAMS.beginPosX, robot.PARAMS.beginPosY, Math.toRadians(180));
+        teleOpBeginPose = beginPos;
        // AprilTag aprilTag = new AprilTag("Webcam 1", hardwareMap);
         boolean beginPoseFound = false;
      //   aprilTag.getDetectedTags().;
        // limelight.pipelineSwitch(1);
         while (!beginPoseFound && opModeInInit()) {
             if (result.isValid()) {
-                beginPose = new Pose2d(new Vector2d(result.getBotpose().getPosition().x - 0.01, result.getBotpose().getPosition().y), result.getBotpose().getOrientation().getYaw());
+                beginPos = new Pose2d(new Vector2d(result.getBotpose().getPosition().x, result.getBotpose().getPosition().y), result.getBotpose().getOrientation().getYaw());
 
-                telemetry.addData("x", beginPose.position.x);
-                telemetry.addData("y", beginPose.position.y);
-                telemetry.addData("heading", Math.toDegrees(beginPose.heading.toDouble()));
+                telemetry.addData("x", beginPos.position.x);
+                telemetry.addData("y", beginPos.position.y);
+                telemetry.addData("heading", Math.toDegrees(beginPos.heading.toDouble()));
                 telemetry.update();
                 beginPoseFound = true;
             }
@@ -66,14 +60,18 @@ public class AutoBackBlue extends robot {
        // limelight.pipelineSwitch(0);
         telemetry.update();
 
-        MecanumDrive drive = new MecanumDrive(hardwareMap, beginPose);
+        //MecanumDrive drive = new MecanumDrive(hardwareMap, beginPos);
+        //drive.defaultAccelConstraint.
         //PinpointLocalizer pinpoint = new PinpointLocalizer(hardwareMap, 0.0007669904, beginPose);
         
         waitForStart();
         if (opModeIsActive()) {
             if (isStopRequested()) return;
             telemetry.addData("Status: ", "Running");
-            drive.localizer.setPose(beginPose);
+            power = 2150;
+            setLaunchRPM(power);
+            hood.setPosition(0.25);
+            drive.localizer.setPose(beginPos);
           /*  Actions.runBlocking(
                     drive.actionBuilder(drive.localizer.getPose())
                             .lineToYConstantHeading(10)
@@ -82,22 +80,24 @@ public class AutoBackBlue extends robot {
                             .build()
             );*/
             drive.localizer.update();
-            beginPose = drive.localizer.getPose();
+            //drive.localizer.getPose();
            // hood.setPosition(0.0);
             double time = 0;
+            //power = 4000;
             Actions.runBlocking(new SequentialAction(
-                    drive.actionBuilder(beginPose)
-                            //.splineToConstantHeading(new Vector2d(-50, 0), 0)
-                            .strafeTo(new Vector2d(PARAMS.targetX,PARAMS.targetY))
-                            .endTrajectory()
-                            .turnTo(Math.toRadians(PARAMS.targetHeading))
-                            .endTrajectory()
-                            //.strafeTo(new Vector2d(62,-22.5))
+                    new rowSelectAuto(4),
+                    new newLaunchCycle(true),
+                    new rowSelectAuto(2),
+                    new newLaunchCycle(true),
+                    new rowSelectAuto(3),
+                    new newLaunchCycle(true),
+                    new sendAutoEndPose()
+                   // new rowSelectAuto(4)
+                   /* new rowSelectAuto(3),
+                    new newLaunchCycle(true)*/
 
-                            //.endTrajectory()
-                            //.splineToConstantHeading(new Vector2d(0,0), Math.toRadians(0))
-                            .build(),  new newLaunchCycle(), drive.actionBuilder(drive.localizer.getPose()).turnTo(Math.toRadians(0)).strafeTo(new Vector2d(PARAMS.endX,PARAMS.endY)).endTrajectory().build())
-            );
+            ));
+
             telemetry.addData("Status: ", "Done");
             telemetry.addData("PPX", drive.localizer.getPose().position.x);
             telemetry.addData("PPY", drive.localizer.getPose().position.y);
