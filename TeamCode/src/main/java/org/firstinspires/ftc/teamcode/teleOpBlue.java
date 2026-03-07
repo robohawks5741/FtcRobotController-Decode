@@ -7,6 +7,9 @@ public class teleOpBlue extends indexLaunchTest{
     @Override
     public void runOpMode() throws InterruptedException {
         isTeleOpRed = false;
+        isRedAlliance = false;
+
+        //PARAMS.modifier = 1;
         super.runOpMode();
     }
 }

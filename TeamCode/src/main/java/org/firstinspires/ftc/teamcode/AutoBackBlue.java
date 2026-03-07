@@ -36,6 +36,8 @@ public class AutoBackBlue extends robot {
     }*/
     @Override
     public void runOpMode() throws InterruptedException {
+        isRedAlliance = false;
+        boolean waiting = true;
         super.runOpMode();
         telemetry.addData("Status:", " Initialized");
         //super.runOpMode();
@@ -47,7 +49,7 @@ public class AutoBackBlue extends robot {
        // limelight.pipelineSwitch(1);
         while (!beginPoseFound && opModeInInit()) {
             if (result.isValid()) {
-                beginPos = new Pose2d(new Vector2d(result.getBotpose().getPosition().x, result.getBotpose().getPosition().y), result.getBotpose().getOrientation().getYaw());
+                //beginPos = new Pose2d(new Vector2d(result.getBotpose().getPosition().x, result.getBotpose().getPosition().y), result.getBotpose().getOrientation().getYaw());
 
                 telemetry.addData("x", beginPos.position.x);
                 telemetry.addData("y", beginPos.position.y);
@@ -84,20 +86,39 @@ public class AutoBackBlue extends robot {
            // hood.setPosition(0.0);
             double time = 0;
             //power = 4000;
-            Actions.runBlocking(new SequentialAction(
-                    new rowSelectAuto(4),
-                    new newLaunchCycle(true),
-                    new rowSelectAuto(2),
-                    new newLaunchCycle(true),
-                    new rowSelectAuto(3),
-                    new newLaunchCycle(true),
-                    new sendAutoEndPose()
-                   // new rowSelectAuto(4)
+            if (waiting) {
+                Actions.runBlocking(new SequentialAction(
+                        new rowSelectAuto(5),
+                        //new newLaunchCycle(true),
+                        new rowSelectAuto(4),
+                        new newLaunchCycle(true),
+                        new rowSelectAuto(2),
+                        new newLaunchCycle(true),
+                        new sendAutoEndPose()
+                        // new rowSelectAuto(4)
                    /* new rowSelectAuto(3),
                     new newLaunchCycle(true)*/
 
-            ));
+                ));
+            }else {
+                Actions.runBlocking(new SequentialAction(
+                        new rowSelectAuto(4),
+                        new newLaunchCycle(true),
+                        new rowSelectAuto(2),
+                        new newLaunchCycle(true),
+                        new rowSelectAuto(3),
+                        new newLaunchCycle(true),
+                        new sendAutoEndPose()
+                        // new rowSelectAuto(4)
+                   /* new rowSelectAuto(3),
+                    new newLaunchCycle(true)*/
 
+                ));
+            }
+            if (isStopRequested()) {
+                new sendAutoEndPose();
+            }
+            telemetry.addData("TeleOpBeginPose", teleOpBeginPose);
             telemetry.addData("Status: ", "Done");
             telemetry.addData("PPX", drive.localizer.getPose().position.x);
             telemetry.addData("PPY", drive.localizer.getPose().position.y);

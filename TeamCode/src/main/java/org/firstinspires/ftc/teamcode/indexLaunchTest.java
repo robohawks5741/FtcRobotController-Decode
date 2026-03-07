@@ -42,11 +42,12 @@ public class indexLaunchTest extends robot {
     @Override
     public void runOpMode() throws InterruptedException {
         //DcMotorEx motor = hardwareMap.get(DcMotorEx.class, "motor");
+
+        isRedAlliance = isTeleOpRed;
+        super.runOpMode();
         if (teleOpBeginPose == null) {
             teleOpBeginPose = beginPos;
         }
-        super.runOpMode();
-
       //  launcher.setVelocityPIDFCoefficients(0.4,0.001,0.3, 4);
         double Kp = PARAMS.Kp;
         double Ki = PARAMS.Ki;
@@ -103,10 +104,7 @@ public class indexLaunchTest extends robot {
         waitForStart();
         indexer(1);
         indexer(0);
-        if (isTeleOpRed) {
-            PARAMS.modifier *= -1;
-            PARAMS.isRedAlliance = true;
-        }
+
         drive.localizer.setPose(teleOpBeginPose);
         setTurretPosition(turretAngle);
         while (opModeIsActive()) {
@@ -138,9 +136,11 @@ public class indexLaunchTest extends robot {
                 dpadRightPressed = false;
             }
             if (gamepad1.right_bumper) {
-                new turretTrack(true).run(new TelemetryPacket());
+                new turretTrack(isRedAlliance).run(new TelemetryPacket());
                 //PARAMS.turretAngle = 180;
-            }else {
+            } else if (gamepad1.left_stick_button){
+                turretAngle = 45;
+            } else {
                 turretAngle -= gamepad1.right_stick_x*8;
 
                 // turret2.setPower(0);
@@ -301,6 +301,9 @@ public class indexLaunchTest extends robot {
                     ),
                     -gamepad2.right_stick_x
             ));
+            telemetry.addData("isRedAlliance", isRedAlliance);
+            telemetry.addData("isTeleopRed", isTeleOpRed);
+            telemetry.addData("teleOpBeginPose", teleOpBeginPose);
             telemetry.addData("teleOpDistancePower", teleopPower);
             telemetry.addData("autoPower", autoPower);
             telemetry.addData("turretPOWER", turret1.getPower());
@@ -308,6 +311,9 @@ public class indexLaunchTest extends robot {
             telemetry.addData("redTagY", redTagY);
             telemetry.addData("redTagVector", redTagVector);
             telemetry.addData("redTagHeading", redTagHeading);
+
+            telemetry.addData("blueTagVector", blueTagVector);
+            telemetry.addData("blueTagHeading", blueTagHeading);
             telemetry.addData("Launcher Velocity", launcher.getVelocity(AngleUnit.DEGREES));
           //  telemetry.addData("Launcher Velocity Target", );
             telemetry.addData("Launcher Velocity Adjusted", launcher.getVelocity(AngleUnit.DEGREES)*19.1);
