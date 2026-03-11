@@ -122,10 +122,10 @@ public class PIDTuning extends robot {
 
             drive.setDrivePowers(new PoseVelocity2d(
                     new Vector2d(
-                            -gamepad2.left_stick_y,
-                            -gamepad2.left_stick_x
+                            -gamepad1.left_stick_y,
+                            -gamepad1.left_stick_x
                     ),
-                    -gamepad2.right_stick_x
+                    -gamepad1.right_stick_x
             ));
 
             if (result != null) {
