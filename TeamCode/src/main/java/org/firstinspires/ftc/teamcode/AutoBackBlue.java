@@ -22,6 +22,7 @@ public class AutoBackBlue extends robot {
     //CRServo turret2;
     PID pid;
     Limelight3A limelight;
+    boolean redOverride = false;
   /*  public class turretTrack implements Action {
         @Override
         public boolean run(@NonNull TelemetryPacket telemetryPacket) {
@@ -36,15 +37,17 @@ public class AutoBackBlue extends robot {
     }*/
     @Override
     public void runOpMode() throws InterruptedException {
-        isRedAlliance = false;
         boolean waiting = true;
         super.runOpMode();
+        if (!redOverride) {
+            isRedAlliance = false;
+        }
         telemetry.addData("Status:", " Initialized");
         //super.runOpMode();
         //Pose2d beginPose = new Pose2d(robot.PARAMS.beginPosX, robot.PARAMS.beginPosY, Math.toRadians(180));
         teleOpBeginPose = beginPos;
        // AprilTag aprilTag = new AprilTag("Webcam 1", hardwareMap);
-        boolean beginPoseFound = false;
+        boolean beginPoseFound = true;
      //   aprilTag.getDetectedTags().;
        // limelight.pipelineSwitch(1);
         while (!beginPoseFound && opModeInInit()) {
@@ -70,8 +73,8 @@ public class AutoBackBlue extends robot {
         if (opModeIsActive()) {
             if (isStopRequested()) return;
             telemetry.addData("Status: ", "Running");
-            power = 2150;
-            setLaunchRPM(power);
+            autoPower = 2150;
+            setLaunchRPM(autoPower);
             hood.setPosition(0.25);
             drive.localizer.setPose(beginPos);
           /*  Actions.runBlocking(
@@ -92,7 +95,7 @@ public class AutoBackBlue extends robot {
                         //new newLaunchCycle(true),
                         new rowSelectAuto(4),
                         new newLaunchCycle(true),
-                        new rowSelectAuto(2),
+                        new rowSelectAuto(3),
                         new newLaunchCycle(true),
                         new sendAutoEndPose()
                         // new rowSelectAuto(4)

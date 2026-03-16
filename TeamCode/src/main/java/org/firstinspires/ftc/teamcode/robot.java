@@ -33,8 +33,6 @@ package org.firstinspires.ftc.teamcode;
 import static androidx.core.math.MathUtils.clamp;
 import static java.lang.Math.abs;
 
-import android.sax.StartElementListener;
-
 import androidx.annotation.NonNull;
 
 import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
@@ -56,7 +54,6 @@ import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.IMU;
 
 import org.firstinspires.ftc.robotcore.external.matrices.VectorF;
@@ -66,6 +63,7 @@ import org.firstinspires.ftc.teamcode.subsystems.PinpointLocalizer;
 import org.firstinspires.ftc.vision.apriltag.AprilTagGameDatabase;
 import org.firstinspires.ftc.vision.apriltag.AprilTagLibrary;
 
+import com.qualcomm.robotcore.hardware.LED;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
@@ -93,7 +91,12 @@ public class robot extends LinearOpMode {
     //CRServo turret2;
     Servo hood;
     Servo feed;
-    ColorSensor color;
+    ColorSensor color1;
+    ColorSensor color2;
+    Servo indexLightSignal1;
+    Servo indexLightSignal2;
+    Servo indexLightSignal3;
+
     public MecanumDrive drive;
 
     public double TICKS_PER_REV = 384.5;
@@ -132,7 +135,7 @@ public class robot extends LinearOpMode {
         public double localizerY = beginPosY;
         public double beginHeading = Math.toRadians(180);
         public double targetX = -53;
-        public double targetY = 25;
+    public double targetY = 25;
         public double row1X = 34.5;
         public double row1Y = 68;
         public double row2X = 10;
@@ -193,17 +196,23 @@ public class robot extends LinearOpMode {
     public AprilTagLibrary getTagLibrary() {
         return tagLibrary;
     }
-    VectorF redTagVector = getTagLibrary().lookupTag(24).fieldPosition;
-    double redTagX = redTagVector.get(0);
-    double redTagY = redTagVector.get(1);
-    double redTagHeading = 0;
-    double redTagDistance = 0;
+    //VectorF redGoalVector = getTagLibrary().lookupTag(24).fieldPosition;
+    VectorF redGoalVector = new VectorF(-70, 70, 0);
+    double redGoalX = redGoalVector.get(0);
+    double redGoalY = redGoalVector.get(1);
+    double redGoalHeading = 0;
+    double redGoalDistance = 0;
 
-    VectorF blueTagVector = getTagLibrary().lookupTag(20).fieldPosition;
-    double blueTagX = blueTagVector.get(0);
-    double blueTagY = blueTagVector.get(1);
-    double blueTagHeading = 0;
-    double blueTagDistance = 0;
+    //VectorF blueGoalVector = getTagLibrary().lookupTag(20).fieldPosition;
+    VectorF blueGoalVector = new VectorF(-70, -70, 0);
+    double blueGoalX = blueGoalVector.get(0);
+    double blueGoalY = blueGoalVector.get(1);
+    double blueGoalHeading = 0;
+    double blueGoalDistance = 0;
+    double launcherM = 12.25;//slope of linear velocity adjustment
+    double launcherB = 1500;//Y-Int of linear Velocity adjustment
+    double hoodM = 0.7/145;//slope of linear hood adjustment
+    double hoodB = 0.25;//Y-Int of linear hood adjustment
 
     List<Integer> artifacts;
     @Override
@@ -250,7 +259,8 @@ public class robot extends LinearOpMode {
         launchFeedR = hardwareMap.get(CRServo.class, "launchFeedR");
         launcher = hardwareMap.get(DcMotorEx.class, "launcher");
         indexer = hardwareMap.get(CRServo.class, "index");
-        color = hardwareMap.get(ColorSensor.class, "color");
+        color1 = hardwareMap.get(ColorSensor.class, "color1");
+        color2 = hardwareMap.get(ColorSensor.class, "color2");
         liftL = hardwareMap.get(DcMotorEx.class, "liftL");
         liftR = hardwareMap.get(DcMotorEx.class, "liftR");
         //  turret1.scaleRange(0.25, .75);
@@ -259,6 +269,11 @@ public class robot extends LinearOpMode {
         // turret1.getController().
         turret1.setDirection(CRServo.Direction.FORWARD);
         turret1.setPower(0);
+
+        indexLightSignal1 = hardwareMap.get(Servo.class, "light1");
+        indexLightSignal2 = hardwareMap.get(Servo.class, "light2");
+        indexLightSignal3 = hardwareMap.get(Servo.class, "light3");
+
 
        // turret2.setDirection(CRServo.Direction.REVERSE);
         PinpointLocalizer = new PinpointLocalizer(hardwareMap, 0.00072471557, new Pose2d(0, 0, 0));
@@ -305,10 +320,10 @@ public class robot extends LinearOpMode {
         waitForStart();
         drive = new MecanumDrive(hardwareMap, beginPos);
         drive.localizer.update();
-        blueTagHeading = Math.atan2(blueTagY-PARAMS.localizerY, blueTagX-PARAMS.localizerX);
-        blueTagDistance = Math.hypot(blueTagX-PARAMS.localizerX, blueTagY-PARAMS.localizerY);
-        redTagHeading = Math.atan2(redTagY-PARAMS.localizerY, redTagX-PARAMS.localizerX);
-        redTagDistance = Math.hypot(redTagX-PARAMS.localizerX, redTagY-PARAMS.localizerY);
+        blueGoalHeading = Math.atan2(blueGoalY -PARAMS.localizerY, blueGoalX -PARAMS.localizerX);
+        blueGoalDistance = Math.hypot(blueGoalX -PARAMS.localizerX, blueGoalY -PARAMS.localizerY);
+        redGoalHeading = Math.atan2(redGoalY -PARAMS.localizerY, redGoalX -PARAMS.localizerX);
+        redGoalDistance = Math.hypot(redGoalX -PARAMS.localizerX, redGoalY -PARAMS.localizerY);
         // aprilTag = new AprilTag("Webcam 1", hardwareMap);
 
         if (isStopRequested()){
@@ -326,17 +341,15 @@ public class robot extends LinearOpMode {
     public void launcherAngleVelocity(){
         double tagDistance;
         if (isRedAlliance){
-            tagDistance = redTagDistance;
+            tagDistance = redGoalDistance;
         } else {
-            tagDistance = blueTagDistance;
+            tagDistance = blueGoalDistance;
         }
-        double vel = (Math.PI*2*power)/60;
-        hoodPosition = (((0.7*tagDistance)/145)+0.25);
-        double ang = Math.atan((Math.pow(vel, 2)+Math.sqrt(Math.pow(vel,4) - 9.81*(9.8*Math.pow(tagDistance, 2)+ (2*1*Math.pow(vel,2)))))/(9.8*tagDistance));
-        if (ang < 30) {ang = 30;}
-        if (ang > 80) {ang = 80;}
+        //double vel = (Math.PI*2*power)/60;
+        hoodPosition = ((hoodM*tagDistance)+hoodB);
+
         //hoodPosition = 0.25 + (ang-30)*(0.95-0.25)/(80-30);
-        teleopPower =  Math.toIntExact(Math.round((14.2*tagDistance)+1850));
+        teleopPower =  Math.toIntExact(Math.round((launcherM*tagDistance)+launcherB));
         telemetry.addData("tagDistance", tagDistance);
         telemetry.addData("hoodPosition", hoodPosition);
         telemetry.addData("observedHoodPosition", hood.getPosition());
@@ -535,8 +548,10 @@ public class robot extends LinearOpMode {
                                     .strafeToLinearHeading(new Vector2d(PARAMS.targetX, PARAMS.targetY), Math.toRadians(PARAMS.targetHeading))
                                     .build()
                     ));
+                    break;
                 case 5:
-                    Actions.runBlocking(new SleepAction(15));
+                    Actions.runBlocking(new SleepAction(13));
+                    break;
             }
             return false;
         }
@@ -621,13 +636,13 @@ public class robot extends LinearOpMode {
             if (redAlliance) {
                 pid.turretReset();
                 drive.localizer.update();
-                turretAngle = Math.toDegrees(Math.atan2(Math.sin(Math.toRadians(redTagHeading)-drive.localizer.getPose().heading.toDouble()), Math.cos(Math.toRadians(redTagHeading)-drive.localizer.getPose().heading.toDouble())));
+                turretAngle = Math.toDegrees(Math.atan2(Math.sin(Math.toRadians(redGoalHeading)-drive.localizer.getPose().heading.toDouble()), Math.cos(Math.toRadians(redGoalHeading)-drive.localizer.getPose().heading.toDouble())));
                // setTurretPosition(PARAMS.turretAngle);
                 telemetry.addData("toRedGoal", turretAngle);
             } else {
                 pid.turretReset();
                 drive.localizer.update();
-                turretAngle = Math.toDegrees(Math.atan2(Math.sin(Math.toRadians(blueTagHeading)-drive.localizer.getPose().heading.toDouble()), Math.cos(Math.toRadians(blueTagHeading)-drive.localizer.getPose().heading.toDouble())));
+                turretAngle = Math.toDegrees(Math.atan2(Math.sin(Math.toRadians(blueGoalHeading)-drive.localizer.getPose().heading.toDouble()), Math.cos(Math.toRadians(blueGoalHeading)-drive.localizer.getPose().heading.toDouble())));
 
                 // setTurretPosition(PARAMS.turretAngle);
                 telemetry.addData("toBlueGoal", turretAngle);
@@ -647,21 +662,70 @@ public class robot extends LinearOpMode {
 
         intake.setPower(0);
     }
+    public void indexColors(int light, int state) {
+        Servo targetLight;
+        boolean lightSetUp = false;
+        switch (light) {
+            case 0:
+                targetLight = indexLightSignal1;
+                lightSetUp = true;
+                break;
+            case 1:
+                targetLight = indexLightSignal2;
+                lightSetUp = true;
+                break;
+            case 2:
+                targetLight = indexLightSignal3;
+                lightSetUp = true;
+                break;
+            default:
+                targetLight = indexLightSignal1;
+                lightSetUp = true;
+                break;
+        }
+        if (lightSetUp) {
+            switch (state) {
+                case 0:
+                    targetLight.setPosition(0.28);
+                    break;
+                case 1:
+                    targetLight.setPosition(0.69);
+                    break;
+                case 2:
+                    targetLight.setPosition(0.5);
+                    break;
+            }
+        }
+    }
     public void colorLogger() {
         int intakeSlotContents;
         int offset = -1;
         //0 = empty
         //1 = purple
         //2 = green
-        double purple = (color.red()+color.blue())/2;
-        double green = color.green();
-        if (color.green() > 200 && green - purple > 100) {
+        double purple1 = (color1.red()+ color1.blue())/2;
+        double green1 = color1.green();
+
+        double purple2 = (color2.red()+ color2.blue())/2;
+        double green2 = color2.green();
+
+        boolean sensor1Purple = purple1 >200 && purple1 - green1 > 100;
+        boolean sensor1Green = green1 > 200 && green1 - purple1 > 100;
+
+        boolean sensor2Purple = purple2 >200 && purple2 - green2 > 100;
+        boolean sensor2Green = green2 > 200 && green2 - purple2 > 100;
+
+        if (sensor1Green||sensor2Green) {
             intakeSlotContents = 2;
-        } else if (purple >200 && purple - green > 100) {
+        } else if (sensor1Purple||sensor2Purple) {
             intakeSlotContents = 1;
         } else {
             intakeSlotContents = 0;
         }
+        indexColors(0, artifacts.get(0));
+        indexColors(1, artifacts.get(1));
+        indexColors(2, artifacts.get(2));
+
         isLaunching = abs(launcher.getVelocity()) > 10;
         if (isLaunching || intake.getPower() >0.1) {
             switch (index) {
@@ -671,7 +735,12 @@ public class robot extends LinearOpMode {
                     }
                     break;
                 case 2:
-                    artifacts.set(1, intakeSlotContents);
+                    if (intakeSlotContents !=0){
+                        artifacts.set(1, intakeSlotContents);
+                    }
+                    if (intake.getPower() < 0) {
+                        artifacts.set(1, intakeSlotContents);
+                    }
                     break;
                 case 3:
                     if (isLaunching) {
@@ -679,7 +748,12 @@ public class robot extends LinearOpMode {
                     }
                     break;
                 case 4:
-                    artifacts.set(2, intakeSlotContents);
+                    if (intakeSlotContents !=0){
+                        artifacts.set(2, intakeSlotContents);
+                    }
+                    if (intake.getPower() < 0) {
+                        artifacts.set(2, intakeSlotContents);
+                    }
                     break;
                 case 5:
                     if (isLaunching) {
@@ -687,10 +761,16 @@ public class robot extends LinearOpMode {
                     }
                     break;
                 case 0:
-                    artifacts.set(0, intakeSlotContents);
+                    if (intakeSlotContents !=0){
+                        artifacts.set(0, intakeSlotContents);
+                    }
+                    if (intake.getPower() < 0) {
+                        artifacts.set(0, intakeSlotContents);
+                    }
                     break;
             }
         }
+
         //telemetry.addData("artifacts", artifacts);
     }
     public class launchCycle implements Action {
@@ -808,9 +888,9 @@ public class robot extends LinearOpMode {
             boolean launchStarted = false;
             feedOn();
             intake.setPower(1);
-          //  indexer.setPower(0);
+            indexer.setPower(0);
             if(auto){
-                setLaunchRPM(power);
+                setLaunchRPM(autoPower);
             }
 
             while (opModeIsActive()) {
@@ -826,10 +906,10 @@ public class robot extends LinearOpMode {
                     drive.localizer.update();
                     robot.PARAMS.localizerX = drive.localizer.getPose().position.x;
                     robot.PARAMS.localizerY = drive.localizer.getPose().position.y;
-                    blueTagHeading = Math.toDegrees(Math.atan2(blueTagY-PARAMS.localizerY, blueTagX-PARAMS.localizerX));
-                    blueTagDistance = Math.hypot(blueTagX-PARAMS.localizerX, blueTagY-PARAMS.localizerY);
-                    redTagHeading = Math.toDegrees(Math.atan2(redTagY-PARAMS.localizerY, redTagX-PARAMS.localizerX));
-                    redTagDistance = Math.hypot(redTagX-PARAMS.localizerX, redTagY-PARAMS.localizerY);
+                    blueGoalHeading = Math.toDegrees(Math.atan2(blueGoalY -PARAMS.localizerY, blueGoalX -PARAMS.localizerX));
+                    blueGoalDistance = Math.hypot(blueGoalX -PARAMS.localizerX, blueGoalY -PARAMS.localizerY);
+                    redGoalHeading = Math.toDegrees(Math.atan2(redGoalY -PARAMS.localizerY, redGoalX -PARAMS.localizerX));
+                    redGoalDistance = Math.hypot(redGoalX -PARAMS.localizerX, redGoalY -PARAMS.localizerY);
 
 
 
@@ -862,7 +942,7 @@ public class robot extends LinearOpMode {
                 telemetry.addData("LAUNCH RPM ADJ", launcher.getVelocity(AngleUnit.DEGREES) * 19.1);
                 telemetry.addData("artifacts", artifacts);
                 telemetry.addData("index", index);
-                telemetry.addData("color", color.green());
+                telemetry.addData("color", color1.green());
                 telemetry.update();
                 if (!auto) {
                     drive.setDrivePowers(new PoseVelocity2d(
@@ -891,11 +971,19 @@ public class robot extends LinearOpMode {
                 }
                 //hood.setPosition(0.25);
 
-                if (toSpeed && time.now(TimeUnit.SECONDS) - timer < startTime+1.7) {
-                   indexer.setPower(0.5);
-                }else if (time.now(TimeUnit.SECONDS)-timer >10){
-                    indexer.setPower(0.5);
-                }else if (time.now(TimeUnit.SECONDS)-timer > startTime+1.7 || time.now(TimeUnit.SECONDS)-timer >12) {
+                if (toSpeed && time.now(TimeUnit.SECONDS) - timer < startTime+1.9) {
+                    if (auto) {
+                        indexer.setPower(1);
+                    }else {
+                        indexer.setPower(0.5);
+                    }
+                }else if (time.now(TimeUnit.SECONDS)-timer >10 && time.now(TimeUnit.SECONDS)-timer <12){
+                    if (auto) {
+                        indexer.setPower(1);
+                    }else {
+                        indexer.setPower(0.5);
+                    }
+                }else if (time.now(TimeUnit.SECONDS)-timer > startTime+1.9 || time.now(TimeUnit.SECONDS)-timer >12) {
                     //indexer.setPower(0);
 
                     artifacts = Arrays.asList(0,0,0);
