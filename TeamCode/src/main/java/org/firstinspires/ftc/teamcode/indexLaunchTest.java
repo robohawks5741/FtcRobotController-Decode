@@ -235,7 +235,7 @@ public class indexLaunchTest extends robot {
             if (gamepad1.right_stick_button) {
                 if (!launchTriggered) {
                   //  Actions.runBlocking(new launchCycle()/*, new setPowers()*/);
-                    new newLaunchCycle(false).run(new TelemetryPacket());
+                    new newLaunchCycle(false, true).run(new TelemetryPacket());
                     launchTriggered = true;
                 }
                 //new launchCycle();
