@@ -33,8 +33,6 @@ package org.firstinspires.ftc.teamcode;
 import static androidx.core.math.MathUtils.clamp;
 import static java.lang.Math.abs;
 
-import android.sax.StartElementListener;
-
 import androidx.annotation.NonNull;
 
 import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
@@ -55,7 +53,6 @@ import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.IMU;
 
 import org.firstinspires.ftc.robotcore.external.matrices.VectorF;
@@ -756,104 +753,7 @@ public class robot extends LinearOpMode {
         lightUpdate(2, artifacts.get(2));
         //telemetry.addData("artifacts", artifacts);
     }
-    public class launchCycle implements Action {
-        @Override
-        public boolean run(@NonNull TelemetryPacket telemetryPacket) {
-            ElapsedTime time = new ElapsedTime(ElapsedTime.Resolution.SECONDS);
-            double timer = time.now(TimeUnit.SECONDS);
-            setLaunchRPM(power);
-            index = 0;
-            indexer(index);
-            double longDelay;
-            double shortDelay;
-            feedOff();
-            while (opModeIsActive()) {
-                colorLogger();
-                intake.setPower(1);
-                telemetry.addData("launchCycle Running", "");
-                //telemetry.addData("unadjusted RPM", launcher.getVelocity(AngleUnit.DEGREES)/6);
-                telemetry.addData("LAUNCH RPM", launcher.getVelocity(AngleUnit.DEGREES));
 
-                telemetry.update();
-                drive.setDrivePowers(new PoseVelocity2d(
-                        new Vector2d(
-                                -gamepad2.left_stick_y,
-                                -gamepad2.left_stick_x
-                        ),
-                        -gamepad2.right_stick_x
-                ));
-                if (gamepad1.right_bumper){
-                    //   if
-                    /* turret1.setPosition((gamepad1.left_stick_x+0.5));
-                     */
-                    //turret2.setPosition((gamepad1.left_stick_x+0.5));
-                    turret1.setPower(-gamepad1.left_stick_x);
-                    //turret2.setPower(gamepad1.left_stick_x);
-                    //turret1.setPower();
-                    telemetry.addLine("Turret Running");
-                } else {
-                    turret1.setPower(0);
-                    //turret2.setPower(0);
-                }
-                if (gamepad1.left_bumper){
-                    hood.setPosition(clamp(gamepad1.left_stick_y, 0.25, 0.95));
-                }
-                hood.setPosition(0.25);
-                if (time.now(TimeUnit.SECONDS) - timer == 4) {
-                    feedOn();
-                }
-                if (time.now(TimeUnit.SECONDS) - timer == 7) {
-                    feedOff();
-                    //indexer(2);
-                }
-                if (time.now(TimeUnit.SECONDS) - timer == 8) {
-
-                    index = 2;
-                    /*if (index >4) {
-                        index =0;
-                    }*/
-                    indexer(index);
-                }
-                if (time.now(TimeUnit.SECONDS) - timer == 9) {
-                    feedOn();
-                }
-                if (time.now(TimeUnit.SECONDS) - timer == 12) {
-                    feedOff();
-                    //indexer(4);
-                }
-                if (time.now(TimeUnit.SECONDS) - timer == 13) {
-                    index = 4;
-                   /* if (index >4 ) {
-                        index =0;
-                    }*/
-                    indexer(index);
-                }
-                if (time.now(TimeUnit.SECONDS) - timer == 14) {
-                    feedOn();
-                }
-                if (time.now(TimeUnit.SECONDS) - timer == 17) {
-                    feedOff();
-
-
-                }
-                if (time.now(TimeUnit.SECONDS) - timer == 18) {
-
-                    setLaunchRPM(0);
-                    //indexer(3);
-                    index = 3;
-                    indexer(index);
-                    // return true;
-
-                }
-                if (time.now(TimeUnit.SECONDS) - timer > 18) {
-                    intake.setPower(0.0);
-                    break;
-                }
-
-            }
-            return false;
-        }
-    }
     public class newLaunchCycle implements  Action{
         public boolean auto;
         public newLaunchCycle(boolean auto) {
