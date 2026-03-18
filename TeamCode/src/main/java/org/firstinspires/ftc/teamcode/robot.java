@@ -756,8 +756,11 @@ public class robot extends LinearOpMode {
 
     public class newLaunchCycle implements  Action{
         public boolean auto;
-        public newLaunchCycle(boolean auto) {
+        public boolean shortRun;
+
+        public newLaunchCycle(boolean auto, boolean shortRun) {
             this.auto = auto;
+            this.shortRun = shortRun;
         }
         @Override
         public boolean run(@NonNull TelemetryPacket telemetryPacket) {
@@ -851,7 +854,7 @@ public class robot extends LinearOpMode {
                 }
                 //hood.setPosition(0.25);
 
-                if (toSpeed && time.now(TimeUnit.SECONDS) - timer < startTime+2) {
+                if (toSpeed && time.now(TimeUnit.SECONDS) - timer < startTime + (this.shortRun ? 0.5 : 2.0)) {
                    indexer.setPower(0.6);
                 }else if (time.now(TimeUnit.SECONDS)-timer >10){
                     indexer.setPower(0.6);
