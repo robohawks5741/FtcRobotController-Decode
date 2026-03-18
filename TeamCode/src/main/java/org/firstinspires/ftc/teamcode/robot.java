@@ -64,6 +64,8 @@ import org.firstinspires.ftc.teamcode.subsystems.MecanumDrive;
 import org.firstinspires.ftc.teamcode.subsystems.PinpointLocalizer;
 import org.firstinspires.ftc.vision.apriltag.AprilTagGameDatabase;
 import org.firstinspires.ftc.vision.apriltag.AprilTagLibrary;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
@@ -77,6 +79,7 @@ import java.util.concurrent.TimeUnit;
 @Disabled
 public class robot extends LinearOpMode {
 
+    private static final Logger log = LoggerFactory.getLogger(robot.class);
     AprilTag aprilTag;
     AnalogInput indexFB;
     AnalogInput turretFB;
@@ -92,7 +95,13 @@ public class robot extends LinearOpMode {
     //CRServo turret2;
     Servo hood;
     Servo feed;
-    ColorSensor color;
+    ColorSensor color1;
+    ColorSensor color2;
+
+    Servo indexLightSignal1;
+    Servo indexLightSignal2;
+    Servo indexLightSignal3;
+
     public MecanumDrive drive;
 
     public double TICKS_PER_REV = 384.5;
@@ -151,7 +160,7 @@ public class robot extends LinearOpMode {
         //double Kd = 0.000000045;
         public double Kd = 0.4;
         public double indexerP = 0.000000001;
-        public double indexerI = 0.0000000000000000001;
+        public double indexerI = 0.00000000000000001;
         public double indexerD = 0.00000003;
         public double turretP = 0.01;
         //turretP as of 3/6/2026: 0.006; (WORKING)
@@ -221,9 +230,15 @@ public class robot extends LinearOpMode {
         launchFeedR = hardwareMap.get(CRServo.class, "launchFeedR");
         launcher = hardwareMap.get(DcMotorEx.class, "launcher");
         indexer = hardwareMap.get(CRServo.class, "index");
-        color = hardwareMap.get(ColorSensor.class, "color");
+        color1 = hardwareMap.get(ColorSensor.class, "color1");
+        color2 = hardwareMap.get(ColorSensor.class, "color2");
         liftL = hardwareMap.get(DcMotorEx.class, "liftL");
         liftR = hardwareMap.get(DcMotorEx.class, "liftR");
+
+        indexLightSignal1 = hardwareMap.get(Servo.class, "light1");
+        indexLightSignal2 = hardwareMap.get(Servo.class, "light2");
+        indexLightSignal3 = hardwareMap.get(Servo.class, "light3");
+
         //  turret1.scaleRange(0.25, .75);
         //turret2.scaleRange(.25, 0.75);
        // indexer.scaleRange(0, 1);
@@ -571,7 +586,7 @@ public class robot extends LinearOpMode {
             case 0:
                 //1 at intake
                 pid.indexReset();
-                setIndexPosition(0);
+                setIndexPosition(0.0);
                 break;
             default:
                 //1 at intake
@@ -618,50 +633,117 @@ public class robot extends LinearOpMode {
 
         intake.setPower(0);
     }
+    public void lightUpdate(int sel, int color) {
+        int lightSel;
+        //lightSel = (sel+index)%3;
+        Servo targetLight;
+        //lightSel += (2-index)+2;
+       /* if (lightSel <0) {
+            lightSel = 3-lightSel;
+        }*/
+
+        //lightSel = lightSel%3;
+        switch (index/2){
+            case 0 :
+                lightSel = sel%3;
+                break;
+            case 1:
+                lightSel = (sel+2)%3;
+                break;
+            case 2:
+                lightSel = (sel+1)%3;
+                break;
+            default:
+                lightSel = sel;
+                break;
+
+        }
+        switch (lightSel) {
+            case 1:
+                targetLight = indexLightSignal1;
+                break;
+            case 2:
+                targetLight = indexLightSignal3;
+                break;
+            case 0:
+                targetLight = indexLightSignal2;
+                break;
+            default:
+                targetLight = indexLightSignal1;
+                break;
+        }
+        switch (color){
+            case 0:
+                targetLight.setPosition(0.28);
+                break;
+            case 1:
+                targetLight.setPosition(0.69);
+                break;
+            case 2:
+                targetLight.setPosition(0.51);
+                break;
+            default:
+                targetLight.setPosition(0.28);
+                break;
+        }
+
+    }
     public void colorLogger() {
         int intakeSlotContents;
         int offset = -1;
         //0 = empty
         //1 = purple
         //2 = green
-        double purple = (color.red()+color.blue())/2;
-        double green = color.green();
-        if (color.green() > 200 && green - purple > 100) {
+        double purple1 = (color1.red()+color1.blue())/2;
+        double green1 = color1.green();
+        double purple2 = (color2.red()+color2.blue())/2;
+        double green2 = color2.green();
+
+        boolean isPurp1 = purple1 >150 && purple1 - green1 > 50;
+        boolean isGreen1 = green1 > 150 && green1 - purple1 > 50;
+        boolean isPurp2 = purple2 >150 && purple2 - green2 > 50;
+        boolean isGreen2 = green2 > 150 && green2 - purple2 > 50;
+        if (isGreen1||isGreen2) {
             intakeSlotContents = 2;
-        } else if (purple >200 && purple - green > 100) {
+        } else if (isPurp1|isPurp2) {
             intakeSlotContents = 1;
         } else {
             intakeSlotContents = 0;
         }
         isLaunching = abs(launcher.getVelocity()) > 10;
-        if (isLaunching || intake.getPower() >0.1) {
-            switch (index) {
-                case 1:
-                    if (isLaunching) {
-                        artifacts.set(0, 0);
-                    }
-                    break;
-                case 2:
-                    artifacts.set(1, intakeSlotContents);
-                    break;
-                case 3:
-                    if (isLaunching) {
-                        artifacts.set(1, 0);
-                    }
-                    break;
-                case 4:
-                    artifacts.set(2, intakeSlotContents);
-                    break;
-                case 5:
-                    if (isLaunching) {
-                        artifacts.set(2, 0);
-                    }
-                    break;
-                case 0:
-                    artifacts.set(0, intakeSlotContents);
-                    break;
+        if (isLaunching || intake.getPower() >0.1 || intake.getPower() < -0.1) {
+            if (indexer.getPower() < 0.1) {
+                switch (index) {
+                    case 1:
+                        if (isLaunching) {
+                            artifacts.set(0, 0);
+                        }
+                        break;
+                    case 2:
+                        artifacts.set(1, intakeSlotContents);
+                        break;
+                    case 3:
+                        if (isLaunching) {
+                            artifacts.set(1, 0);
+                        }
+                        break;
+                    case 4:
+                        artifacts.set(2, intakeSlotContents);
+                        break;
+                    case 5:
+                        if (isLaunching) {
+                            artifacts.set(2, 0);
+                        }
+                        break;
+                    case 0:
+                        artifacts.set(0, intakeSlotContents);
+                        break;
+                }
             }
         }
+        lightUpdate(0, artifacts.get(0));
+        lightUpdate(1, artifacts.get(1));
+        lightUpdate(2, artifacts.get(2));
         //telemetry.addData("artifacts", artifacts);
     }
     public class launchCycle implements Action {
@@ -830,7 +912,7 @@ public class robot extends LinearOpMode {
                 telemetry.addData("LAUNCH RPM ADJ", launcher.getVelocity(AngleUnit.DEGREES) * 19.1);
                 telemetry.addData("artifacts", artifacts);
                 telemetry.addData("index", index);
-                telemetry.addData("color", color.green());
+                telemetry.addData("color", color1.green());
                 telemetry.update();
                 if (!auto) {
                     drive.setDrivePowers(new PoseVelocity2d(

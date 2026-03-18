@@ -301,6 +301,11 @@ public class indexLaunchTest extends robot {
                     ),
                     -gamepad2.right_stick_x
             ));
+            telemetry.addData("light1", indexLightSignal1.getPosition());
+            telemetry.addData("light2", indexLightSignal2.getPosition());
+            telemetry.addData("light3", indexLightSignal3.getPosition());
+
+
             telemetry.addData("teleOpDistancePower", teleopPower);
             telemetry.addData("autoPower", autoPower);
             telemetry.addData("turretPOWER", turret1.getPower());
@@ -327,8 +332,10 @@ public class indexLaunchTest extends robot {
             }
             telemetry.addData("artifacts", artifacts);
             telemetry.addData("index", index);
-            telemetry.addData("color G", color.green());
-            telemetry.addData("color P", (color.red()+color.blue())/2);
+            telemetry.addData("color G", color1.green());
+            telemetry.addData("color P", (color1.red()+color1.blue())/2);
+            telemetry.addData("color G2", color2.green());
+            telemetry.addData("color P2", (color2.red()+color2.blue())/2);
             telemetry.addData("PPX", drive.localizer.getPose().position.x);
             telemetry.addData("PPY", drive.localizer.getPose().position.y);
             telemetry.addData("PPYaw", Math.toDegrees(drive.localizer.getPose().heading.toDouble()));
