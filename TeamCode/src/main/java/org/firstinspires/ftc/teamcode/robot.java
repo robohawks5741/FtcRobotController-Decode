@@ -301,6 +301,16 @@ public class robot extends LinearOpMode {
             indexer(0);
         }
     }
+
+    // RETURNS INDEX OF BALL WITH SPECIFIED COLOR, OR -1 IF NOT FOUND
+    public int findColorIndex(int artifactColor) {
+        for (int i = 0; i < artifacts.toArray().length; i++) {
+            int artifact = artifacts.get(i);
+            if (artifact == artifactColor) return i;
+        }
+        return -1;
+    }
+
     public class sendAutoEndPose implements Action{
         @Override
         public boolean run(@NonNull TelemetryPacket telemetryPacket) {
