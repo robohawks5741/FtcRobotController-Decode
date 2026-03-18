@@ -62,6 +62,8 @@ import org.firstinspires.ftc.teamcode.subsystems.MecanumDrive;
 import org.firstinspires.ftc.teamcode.subsystems.PinpointLocalizer;
 import org.firstinspires.ftc.vision.apriltag.AprilTagGameDatabase;
 import org.firstinspires.ftc.vision.apriltag.AprilTagLibrary;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.qualcomm.robotcore.hardware.LED;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
@@ -76,6 +78,7 @@ import java.util.concurrent.TimeUnit;
 @Disabled
 public class robot extends LinearOpMode {
 
+    private static final Logger log = LoggerFactory.getLogger(robot.class);
     AprilTag aprilTag;
     AnalogInput indexFB;
     AnalogInput turretFB;
@@ -93,6 +96,7 @@ public class robot extends LinearOpMode {
     Servo feed;
     ColorSensor color1;
     ColorSensor color2;
+
     Servo indexLightSignal1;
     Servo indexLightSignal2;
     Servo indexLightSignal3;
@@ -155,7 +159,7 @@ public class robot extends LinearOpMode {
         //double Kd = 0.000000045;
         public double Kd = 0.4;
         public double indexerP = 0.000000001;
-        public double indexerI = 0.0000000000000000001;
+        public double indexerI = 0.00000000000000001;
         public double indexerD = 0.00000003;
         public double turretP = 0.011;
         //turretP as of 3/6/2026: 0.006; (WORKING)
@@ -263,6 +267,11 @@ public class robot extends LinearOpMode {
         color2 = hardwareMap.get(ColorSensor.class, "color2");
         liftL = hardwareMap.get(DcMotorEx.class, "liftL");
         liftR = hardwareMap.get(DcMotorEx.class, "liftR");
+
+        indexLightSignal1 = hardwareMap.get(Servo.class, "light1");
+        indexLightSignal2 = hardwareMap.get(Servo.class, "light2");
+        indexLightSignal3 = hardwareMap.get(Servo.class, "light3");
+
         //  turret1.scaleRange(0.25, .75);
         //turret2.scaleRange(.25, 0.75);
        // indexer.scaleRange(0, 1);
@@ -330,6 +339,16 @@ public class robot extends LinearOpMode {
             indexer(0);
         }
     }
+
+    // RETURNS INDEX OF BALL WITH SPECIFIED COLOR, OR -1 IF NOT FOUND
+    public int findColorIndex(int artifactColor) {
+        for (int i = 0; i < artifacts.toArray().length; i++) {
+            int artifact = artifacts.get(i);
+            if (artifact == artifactColor) return i;
+        }
+        return -1;
+    }
+
     public class sendAutoEndPose implements Action{
         @Override
         public boolean run(@NonNull TelemetryPacket telemetryPacket) {
@@ -617,7 +636,7 @@ public class robot extends LinearOpMode {
             case 0:
                 //1 at intake
                 pid.indexReset();
-                setIndexPosition(0);
+                setIndexPosition(0.0);
                 break;
             default:
                 //1 at intake
@@ -662,40 +681,60 @@ public class robot extends LinearOpMode {
 
         intake.setPower(0);
     }
-    public void indexColors(int light, int state) {
+    public void lightUpdate(int sel, int color) {
+        int lightSel;
+        //lightSel = (sel+index)%3;
         Servo targetLight;
-        boolean lightSetUp = false;
-        switch (light) {
-            case 0:
-                targetLight = indexLightSignal1;
-                lightSetUp = true;
+        //lightSel += (2-index)+2;
+       /* if (lightSel <0) {
+            lightSel = 3-lightSel;
+        }*/
+
+        //lightSel = lightSel%3;
+        switch (index/2){
+            case 0 :
+                lightSel = sel%3;
                 break;
             case 1:
-                targetLight = indexLightSignal2;
-                lightSetUp = true;
+                lightSel = (sel+2)%3;
+                break;
+            case 2:
+                lightSel = (sel+1)%3;
+                break;
+            default:
+                lightSel = sel;
+                break;
+
+        }
+        switch (lightSel) {
+            case 1:
+                targetLight = indexLightSignal1;
                 break;
             case 2:
                 targetLight = indexLightSignal3;
-                lightSetUp = true;
+                break;
+            case 0:
+                targetLight = indexLightSignal2;
                 break;
             default:
                 targetLight = indexLightSignal1;
-                lightSetUp = true;
                 break;
         }
-        if (lightSetUp) {
-            switch (state) {
-                case 0:
-                    targetLight.setPosition(0.28);
-                    break;
-                case 1:
-                    targetLight.setPosition(0.69);
-                    break;
-                case 2:
-                    targetLight.setPosition(0.5);
-                    break;
-            }
+        switch (color){
+            case 0:
+                targetLight.setPosition(0.28);
+                break;
+            case 1:
+                targetLight.setPosition(0.69);
+                break;
+            case 2:
+                targetLight.setPosition(0.51);
+                break;
+            default:
+                targetLight.setPosition(0.28);
+                break;
         }
+
     }
     public void colorLogger() {
         int intakeSlotContents;
@@ -703,21 +742,18 @@ public class robot extends LinearOpMode {
         //0 = empty
         //1 = purple
         //2 = green
-        double purple1 = (color1.red()+ color1.blue())/2;
+        double purple1 = (color1.red()+color1.blue())/2;
         double green1 = color1.green();
-
-        double purple2 = (color2.red()+ color2.blue())/2;
+        double purple2 = (color2.red()+color2.blue())/2;
         double green2 = color2.green();
 
-        boolean sensor1Purple = purple1 >200 && purple1 - green1 > 100;
-        boolean sensor1Green = green1 > 200 && green1 - purple1 > 100;
-
-        boolean sensor2Purple = purple2 >200 && purple2 - green2 > 100;
-        boolean sensor2Green = green2 > 200 && green2 - purple2 > 100;
-
-        if (sensor1Green||sensor2Green) {
+        boolean isPurp1 = purple1 >150 && purple1 - green1 > 50;
+        boolean isGreen1 = green1 > 150 && green1 - purple1 > 50;
+        boolean isPurp2 = purple2 >150 && purple2 - green2 > 50;
+        boolean isGreen2 = green2 > 150 && green2 - purple2 > 50;
+        if (isGreen1||isGreen2) {
             intakeSlotContents = 2;
-        } else if (sensor1Purple||sensor2Purple) {
+        } else if (isPurp1|isPurp2) {
             intakeSlotContents = 1;
         } else {
             intakeSlotContents = 0;
@@ -727,154 +763,49 @@ public class robot extends LinearOpMode {
         indexColors(2, artifacts.get(2));
 
         isLaunching = abs(launcher.getVelocity()) > 10;
-        if (isLaunching || intake.getPower() >0.1) {
-            switch (index) {
-                case 1:
-                    if (isLaunching) {
-                        artifacts.set(0, 0);
-                    }
-                    break;
-                case 2:
-                    if (intakeSlotContents !=0){
+        if (isLaunching || intake.getPower() >0.1 || intake.getPower() < -0.1) {
+            if (indexer.getPower() < 0.1) {
+                switch (index) {
+                    case 1:
+                        if (isLaunching) {
+                            artifacts.set(0, 0);
+                        }
+                        break;
+                    case 2:
                         artifacts.set(1, intakeSlotContents);
-                    }
-                    if (intake.getPower() < 0) {
-                        artifacts.set(1, intakeSlotContents);
-                    }
-                    break;
-                case 3:
-                    if (isLaunching) {
-                        artifacts.set(1, 0);
-                    }
-                    break;
-                case 4:
-                    if (intakeSlotContents !=0){
+                        break;
+                    case 3:
+                        if (isLaunching) {
+                            artifacts.set(1, 0);
+                        }
+                        break;
+                    case 4:
                         artifacts.set(2, intakeSlotContents);
-                    }
-                    if (intake.getPower() < 0) {
-                        artifacts.set(2, intakeSlotContents);
-                    }
-                    break;
-                case 5:
-                    if (isLaunching) {
-                        artifacts.set(2, 0);
-                    }
-                    break;
-                case 0:
-                    if (intakeSlotContents !=0){
+                        break;
+                    case 5:
+                        if (isLaunching) {
+                            artifacts.set(2, 0);
+                        }
+                        break;
+                    case 0:
                         artifacts.set(0, intakeSlotContents);
-                    }
-                    if (intake.getPower() < 0) {
-                        artifacts.set(0, intakeSlotContents);
-                    }
-                    break;
+                        break;
+                }
             }
         }
-
+        lightUpdate(0, artifacts.get(0));
+        lightUpdate(1, artifacts.get(1));
+        lightUpdate(2, artifacts.get(2));
         //telemetry.addData("artifacts", artifacts);
     }
-    public class launchCycle implements Action {
-        @Override
-        public boolean run(@NonNull TelemetryPacket telemetryPacket) {
-            ElapsedTime time = new ElapsedTime(ElapsedTime.Resolution.SECONDS);
-            double timer = time.now(TimeUnit.SECONDS);
-            setLaunchRPM(power);
-            index = 0;
-            indexer(index);
-            double longDelay;
-            double shortDelay;
-            feedOff();
-            while (opModeIsActive()) {
-                colorLogger();
-                intake.setPower(1);
-                telemetry.addData("launchCycle Running", "");
-                //telemetry.addData("unadjusted RPM", launcher.getVelocity(AngleUnit.DEGREES)/6);
-                telemetry.addData("LAUNCH RPM", launcher.getVelocity(AngleUnit.DEGREES));
 
-                telemetry.update();
-                drive.setDrivePowers(new PoseVelocity2d(
-                        new Vector2d(
-                                -gamepad2.left_stick_y,
-                                -gamepad2.left_stick_x
-                        ),
-                        -gamepad2.right_stick_x
-                ));
-                if (gamepad1.right_bumper){
-                    //   if
-                    /* turret1.setPosition((gamepad1.left_stick_x+0.5));
-                     */
-                    //turret2.setPosition((gamepad1.left_stick_x+0.5));
-                    turret1.setPower(-gamepad1.left_stick_x);
-                    //turret2.setPower(gamepad1.left_stick_x);
-                    //turret1.setPower();
-                    telemetry.addLine("Turret Running");
-                } else {
-                    turret1.setPower(0);
-                    //turret2.setPower(0);
-                }
-                if (gamepad1.left_bumper){
-                    hood.setPosition(clamp(gamepad1.left_stick_y, 0.25, 0.95));
-                }
-                hood.setPosition(0.25);
-                if (time.now(TimeUnit.SECONDS) - timer == 4) {
-                    feedOn();
-                }
-                if (time.now(TimeUnit.SECONDS) - timer == 7) {
-                    feedOff();
-                    //indexer(2);
-                }
-                if (time.now(TimeUnit.SECONDS) - timer == 8) {
-
-                    index = 2;
-                    /*if (index >4) {
-                        index =0;
-                    }*/
-                    indexer(index);
-                }
-                if (time.now(TimeUnit.SECONDS) - timer == 9) {
-                    feedOn();
-                }
-                if (time.now(TimeUnit.SECONDS) - timer == 12) {
-                    feedOff();
-                    //indexer(4);
-                }
-                if (time.now(TimeUnit.SECONDS) - timer == 13) {
-                    index = 4;
-                   /* if (index >4 ) {
-                        index =0;
-                    }*/
-                    indexer(index);
-                }
-                if (time.now(TimeUnit.SECONDS) - timer == 14) {
-                    feedOn();
-                }
-                if (time.now(TimeUnit.SECONDS) - timer == 17) {
-                    feedOff();
-
-
-                }
-                if (time.now(TimeUnit.SECONDS) - timer == 18) {
-
-                    setLaunchRPM(0);
-                    //indexer(3);
-                    index = 3;
-                    indexer(index);
-                    // return true;
-
-                }
-                if (time.now(TimeUnit.SECONDS) - timer > 18) {
-                    intake.setPower(0.0);
-                    break;
-                }
-
-            }
-            return false;
-        }
-    }
     public class newLaunchCycle implements  Action{
         public boolean auto;
-        public newLaunchCycle(boolean auto) {
+        public boolean shortRun;
+
+        public newLaunchCycle(boolean auto, boolean shortRun) {
             this.auto = auto;
+            this.shortRun = shortRun;
         }
         @Override
         public boolean run(@NonNull TelemetryPacket telemetryPacket) {

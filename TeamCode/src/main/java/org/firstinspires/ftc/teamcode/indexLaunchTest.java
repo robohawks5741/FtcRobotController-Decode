@@ -223,7 +223,7 @@ public class indexLaunchTest extends robot {
             if (gamepad1.right_stick_button) {
                 if (!launchTriggered) {
                   //  Actions.runBlocking(new launchCycle()/*, new setPowers()*/);
-                    new newLaunchCycle(false).run(new TelemetryPacket());
+                    new newLaunchCycle(false, true).run(new TelemetryPacket());
                     launchTriggered = true;
                 }
                 //new launchCycle();
@@ -292,6 +292,11 @@ public class indexLaunchTest extends robot {
             telemetry.addData("isRedAlliance", isRedAlliance);
             telemetry.addData("isTeleopRed", isTeleOpRed);
             telemetry.addData("teleOpBeginPose", teleOpBeginPose);
+            telemetry.addData("light1", indexLightSignal1.getPosition());
+            telemetry.addData("light2", indexLightSignal2.getPosition());
+            telemetry.addData("light3", indexLightSignal3.getPosition());
+
+
             telemetry.addData("teleOpDistancePower", teleopPower);
             telemetry.addData("autoPower", autoPower);
             telemetry.addData("turretPOWER", turret1.getPower());
@@ -325,6 +330,9 @@ public class indexLaunchTest extends robot {
             telemetry.addData("color P", (color1.red()+ color1.blue())/2);
             telemetry.addData("color2 G", color2.green());
             telemetry.addData("color2 P", (color2.red()+ color2.blue())/2);
+            telemetry.addData("color P", (color1.red()+color1.blue())/2);
+            telemetry.addData("color G2", color2.green());
+            telemetry.addData("color P2", (color2.red()+color2.blue())/2);
             telemetry.addData("PPX", drive.localizer.getPose().position.x);
             telemetry.addData("PPY", drive.localizer.getPose().position.y);
             telemetry.addData("PPYaw", Math.toDegrees(drive.localizer.getPose().heading.toDouble()));

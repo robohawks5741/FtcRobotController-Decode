@@ -89,16 +89,15 @@ public class AutoBackBlue extends robot {
            // hood.setPosition(0.0);
             double time = 0;
             //power = 4000;
-            if (waiting) {
-                Actions.runBlocking(new SequentialAction(
-                        new rowSelectAuto(5),
-                        //new newLaunchCycle(true),
-                        new rowSelectAuto(4),
-                        new newLaunchCycle(true),
-                        new rowSelectAuto(3),
-                        new newLaunchCycle(true),
-                        new sendAutoEndPose()
-                        // new rowSelectAuto(4)
+            Actions.runBlocking(new SequentialAction(
+                    new rowSelectAuto(4),
+                    new newLaunchCycle(true, false),
+                    new rowSelectAuto(2),
+                    new newLaunchCycle(true, false),
+                    new rowSelectAuto(3),
+                    new newLaunchCycle(true, false),
+                    new sendAutoEndPose()
+                   // new rowSelectAuto(4)
                    /* new rowSelectAuto(3),
                     new newLaunchCycle(true)*/
 
