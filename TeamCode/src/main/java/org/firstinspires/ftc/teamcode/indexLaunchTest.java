@@ -2,32 +2,19 @@ package org.firstinspires.ftc.teamcode;
 
 import static androidx.core.math.MathUtils.clamp;
 import static java.lang.Math.abs;
-import static java.lang.Math.floor;
 
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
-import com.acmerobotics.roadrunner.Action;
-import com.acmerobotics.roadrunner.ParallelAction;
 import com.acmerobotics.roadrunner.Pose2d;
 import com.acmerobotics.roadrunner.PoseVelocity2d;
 import com.acmerobotics.roadrunner.Vector2d;
-import com.acmerobotics.roadrunner.ftc.Actions;
-import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.AnalogInput;
-import com.qualcomm.robotcore.hardware.CRServo;
-import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
-import org.firstinspires.ftc.teamcode.subsystems.MecanumDrive;
 
 import java.util.concurrent.TimeUnit;
 
@@ -42,11 +29,12 @@ public class indexLaunchTest extends robot {
     @Override
     public void runOpMode() throws InterruptedException {
         //DcMotorEx motor = hardwareMap.get(DcMotorEx.class, "motor");
+
+        isRedAlliance = isTeleOpRed;
+        super.runOpMode();
         if (teleOpBeginPose == null) {
             teleOpBeginPose = beginPos;
         }
-        super.runOpMode();
-
       //  launcher.setVelocityPIDFCoefficients(0.4,0.001,0.3, 4);
         double Kp = PARAMS.Kp;
         double Ki = PARAMS.Ki;
@@ -103,10 +91,7 @@ public class indexLaunchTest extends robot {
         waitForStart();
         indexer(1);
         indexer(0);
-        if (isTeleOpRed) {
-            PARAMS.modifier *= -1;
-            PARAMS.isRedAlliance = true;
-        }
+
         drive.localizer.setPose(teleOpBeginPose);
         setTurretPosition(turretAngle);
         while (opModeIsActive()) {
@@ -115,10 +100,10 @@ public class indexLaunchTest extends robot {
             drive.localizer.update();
             robot.PARAMS.localizerX = drive.localizer.getPose().position.x;
             robot.PARAMS.localizerY = drive.localizer.getPose().position.y;
-            blueTagHeading = Math.toDegrees(Math.atan2(blueTagY-PARAMS.localizerY, blueTagX-PARAMS.localizerX));
-            blueTagDistance = Math.hypot(blueTagX-PARAMS.localizerX, blueTagY-PARAMS.localizerY);
-            redTagHeading = Math.toDegrees(Math.atan2(redTagY-PARAMS.localizerY, redTagX-PARAMS.localizerX));
-            redTagDistance = Math.hypot(redTagX-PARAMS.localizerX, redTagY-PARAMS.localizerY);
+            blueGoalHeading = Math.toDegrees(Math.atan2(blueGoalY -PARAMS.localizerY, blueGoalX -PARAMS.localizerX));
+            blueGoalDistance = Math.hypot(blueGoalX -PARAMS.localizerX, blueGoalY -PARAMS.localizerY);
+            redGoalHeading = Math.toDegrees(Math.atan2(redGoalY -PARAMS.localizerY, redGoalX -PARAMS.localizerX));
+            redGoalDistance = Math.hypot(redGoalX -PARAMS.localizerX, redGoalY -PARAMS.localizerY);
            // drive.localizer.setPose(result.getBotpose());
             YawPitchRollAngles orientation = imu.getRobotYawPitchRollAngles();
             limelight.updateRobotOrientation(orientation.getYaw());
@@ -138,9 +123,11 @@ public class indexLaunchTest extends robot {
                 dpadRightPressed = false;
             }
             if (gamepad1.right_bumper) {
-                new turretTrack(true).run(new TelemetryPacket());
+                new turretTrack(isRedAlliance).run(new TelemetryPacket());
                 //PARAMS.turretAngle = 180;
-            }else {
+            } else if (gamepad1.left_stick_button){
+                turretAngle = 45;
+            } else {
                 turretAngle -= gamepad1.right_stick_x*8;
 
                 // turret2.setPower(0);
@@ -157,7 +144,8 @@ public class indexLaunchTest extends robot {
                 liftR.setPower(0);
             }
             if (gamepad1.right_trigger > 0.0) {
-                setLaunchRPM(2150);
+
+                setLaunchRPM(6000);
                //launcher.setVelocity(150, AngleUnit.DEGREES);
             }else {
                 setLaunchRPM(0);
@@ -301,6 +289,9 @@ public class indexLaunchTest extends robot {
                     ),
                     -gamepad2.right_stick_x
             ));
+            telemetry.addData("isRedAlliance", isRedAlliance);
+            telemetry.addData("isTeleopRed", isTeleOpRed);
+            telemetry.addData("teleOpBeginPose", teleOpBeginPose);
             telemetry.addData("light1", indexLightSignal1.getPosition());
             telemetry.addData("light2", indexLightSignal2.getPosition());
             telemetry.addData("light3", indexLightSignal3.getPosition());
@@ -309,10 +300,13 @@ public class indexLaunchTest extends robot {
             telemetry.addData("teleOpDistancePower", teleopPower);
             telemetry.addData("autoPower", autoPower);
             telemetry.addData("turretPOWER", turret1.getPower());
-            telemetry.addData("redTagX", redTagX);
-            telemetry.addData("redTagY", redTagY);
-            telemetry.addData("redTagVector", redTagVector);
-            telemetry.addData("redTagHeading", redTagHeading);
+            telemetry.addData("redTagX", redGoalX);
+            telemetry.addData("redTagY", redGoalY);
+            telemetry.addData("redTagVector", redGoalVector);
+            telemetry.addData("redTagHeading", redGoalHeading);
+
+            telemetry.addData("blueTagVector", blueGoalVector);
+            telemetry.addData("blueTagHeading", blueGoalHeading);
             telemetry.addData("Launcher Velocity", launcher.getVelocity(AngleUnit.DEGREES));
           //  telemetry.addData("Launcher Velocity Target", );
             telemetry.addData("Launcher Velocity Adjusted", launcher.getVelocity(AngleUnit.DEGREES)*19.1);
@@ -333,6 +327,9 @@ public class indexLaunchTest extends robot {
             telemetry.addData("artifacts", artifacts);
             telemetry.addData("index", index);
             telemetry.addData("color G", color1.green());
+            telemetry.addData("color P", (color1.red()+ color1.blue())/2);
+            telemetry.addData("color2 G", color2.green());
+            telemetry.addData("color2 P", (color2.red()+ color2.blue())/2);
             telemetry.addData("color P", (color1.red()+color1.blue())/2);
             telemetry.addData("color G2", color2.green());
             telemetry.addData("color P2", (color2.red()+color2.blue())/2);
@@ -382,6 +379,9 @@ public class indexLaunchTest extends robot {
             telemetry.update();
             TelemetryPacket packet = new TelemetryPacket();
             packet.fieldOverlay().setStroke("#3F51B5");
+            packet.put("x", drive.localizer.getPose().position.x);
+            packet.put("y", drive.localizer.getPose().position.y);
+
             Drawing.drawRobot(packet.fieldOverlay(), drive.localizer.getPose());
             FtcDashboard.getInstance().sendTelemetryPacket(packet);
 

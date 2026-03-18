@@ -41,6 +41,7 @@ import com.acmerobotics.roadrunner.Action;
 import com.acmerobotics.roadrunner.Pose2d;
 import com.acmerobotics.roadrunner.PoseVelocity2d;
 import com.acmerobotics.roadrunner.SequentialAction;
+import com.acmerobotics.roadrunner.SleepAction;
 import com.acmerobotics.roadrunner.Vector2d;
 import com.acmerobotics.roadrunner.ftc.Actions;
 import com.qualcomm.hardware.limelightvision.LLResult;
@@ -64,6 +65,7 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagLibrary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.qualcomm.robotcore.hardware.LED;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
@@ -122,36 +124,36 @@ public class robot extends LinearOpMode {
     double totalTurretRotation = 0;
     int totalTurretRotations = 0;
     double lastTargetAngle = 0;
-
+    public int modifier = 1;
 
 
     int rotationTicker = 0;
     int lastIndex = 0;
     boolean indexCC = true;
     public static class Params {
-        public int modifier = 1;
+        
 
         public double beginPosX = 65;
-        public double beginPosY = 11*modifier;
+        public double beginPosY = 11;
         public double localizerX = beginPosX;
         public double localizerY = beginPosY;
-        public double beginHeading = Math.toRadians(180)*modifier;
+        public double beginHeading = Math.toRadians(180);
         public double targetX = -53;
-        public double targetY = 25*modifier;
+    public double targetY = 25;
         public double row1X = 34.5;
-        public double row1Y = 68*modifier;
+        public double row1Y = 68;
         public double row2X = 10;
-        public double row2Y = 68*modifier;
+        public double row2Y = 69;
         public double row3X = -13;
-        public double row3Y = 62*modifier;
-        public double backToY = 25*modifier;
-        public double row1CheckY = row1Y - (1*modifier);
-        public double row2CheckY = row2Y - (1*modifier);
-        public double row3CheckY = row3Y - (1*modifier);
-        public double intakeHeading = Math.toRadians(90)*modifier;
+        public double row3Y = 62;
+        public double backToY = 25;
+        public double row1CheckY = row1Y;
+        public double row2CheckY = row2Y;
+        public double row3CheckY = row3Y;
+        public double intakeHeading = Math.toRadians(90);
         public double endX = 30;
         public double endY = -20;
-        public double targetHeading = 110 * modifier;
+        public double targetHeading = 110;
         public double Kp = 0.01;
         public double Ki = 0.0000001;
         //double Kd = 0.000000045;
@@ -159,9 +161,9 @@ public class robot extends LinearOpMode {
         public double indexerP = 0.000000001;
         public double indexerI = 0.00000000000000001;
         public double indexerD = 0.00000003;
-        public double turretP = 0.01;
+        public double turretP = 0.011;
         //turretP as of 3/6/2026: 0.006; (WORKING)
-        public double turretI = 0.000000000000000001;
+        public double turretI = 0.00000000000000000001;
         //turretI as of 3/6/2026: 0.00000000000000000001;(WORKING)
         public double turretD = 0.0000000;
         //turretD as of 3/6/2026: 0.0000000;(WORKING)
@@ -169,10 +171,11 @@ public class robot extends LinearOpMode {
         public int indexCycleStart = 0;
 
 
-        public boolean isRedAlliance = false;
+
 
 
     }
+    public boolean isRedAlliance = false;
     public static Params PARAMS = new Params();
     public double turretAngle = 0;
     public int teleopPower = 4000;
@@ -197,21 +200,54 @@ public class robot extends LinearOpMode {
     public AprilTagLibrary getTagLibrary() {
         return tagLibrary;
     }
-    VectorF redTagVector = getTagLibrary().lookupTag(24).fieldPosition;
-    double redTagX = redTagVector.get(0);
-    double redTagY = redTagVector.get(1);
-    double redTagHeading = 0;
-    double redTagDistance = 0;
+    //VectorF redGoalVector = getTagLibrary().lookupTag(24).fieldPosition;
+    VectorF redGoalVector = new VectorF(-70, 70, 0);
+    double redGoalX = redGoalVector.get(0);
+    double redGoalY = redGoalVector.get(1);
+    double redGoalHeading = 0;
+    double redGoalDistance = 0;
 
-    VectorF blueTagVector = getTagLibrary().lookupTag(20).fieldPosition;
-    double blueTagX = blueTagVector.get(0);
-    double blueTagY = blueTagVector.get(1);
-    double blueTagHeading = 0;
-    double blueTagDistance = 0;
+    //VectorF blueGoalVector = getTagLibrary().lookupTag(20).fieldPosition;
+    VectorF blueGoalVector = new VectorF(-70, -70, 0);
+    double blueGoalX = blueGoalVector.get(0);
+    double blueGoalY = blueGoalVector.get(1);
+    double blueGoalHeading = 0;
+    double blueGoalDistance = 0;
+    double launcherM = 12.25;//slope of linear velocity adjustment
+    double launcherB = 1500;//Y-Int of linear Velocity adjustment
+    double hoodM = 0.7/145;//slope of linear hood adjustment
+    double hoodB = 0.25;//Y-Int of linear hood adjustment
 
     List<Integer> artifacts;
     @Override
     public void runOpMode() throws InterruptedException {
+
+        if (isRedAlliance){
+            modifier = 1;
+        }else {modifier = -1;}
+        //public double beginPosX = 65;
+        PARAMS.beginPosY = 11*modifier;
+       // public double localizerX = beginPosX;
+        //public double localizerY = beginPosY;
+        PARAMS.beginHeading = Math.toRadians(180)*modifier;
+        //public double targetX = -53;
+        PARAMS.targetY = 25*modifier;
+        //public double row1X = 34.5;
+        PARAMS.row1Y = 68*modifier;
+        //row2X = 10;
+        PARAMS.row2Y = 69*modifier;
+       // public double row3X = -13;
+        PARAMS.row3Y = 62*modifier;
+        PARAMS.backToY = 25*modifier;
+        PARAMS.row1CheckY = PARAMS.row1Y - (1*modifier);
+        PARAMS.row2CheckY = PARAMS.row2Y - (1*modifier);
+        PARAMS.row3CheckY = PARAMS.row3Y - (1*modifier);
+        PARAMS.intakeHeading = Math.toRadians(90)*modifier;
+       // public double endX = 30;
+        //public double endY = -20;
+        PARAMS.targetHeading = 110 * modifier;
+
+        beginPos = new Pose2d(new Vector2d(PARAMS.beginPosX, PARAMS.beginPosY), PARAMS.beginHeading);
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
         result = limelight.getLatestResult();
         //pid = new PID();
@@ -242,6 +278,11 @@ public class robot extends LinearOpMode {
         // turret1.getController().
         turret1.setDirection(CRServo.Direction.FORWARD);
         turret1.setPower(0);
+
+        indexLightSignal1 = hardwareMap.get(Servo.class, "light1");
+        indexLightSignal2 = hardwareMap.get(Servo.class, "light2");
+        indexLightSignal3 = hardwareMap.get(Servo.class, "light3");
+
 
        // turret2.setDirection(CRServo.Direction.REVERSE);
         PinpointLocalizer = new PinpointLocalizer(hardwareMap, 0.00072471557, new Pose2d(0, 0, 0));
@@ -279,7 +320,7 @@ public class robot extends LinearOpMode {
         imu.initialize(new IMU.Parameters(orientationOnRobot));
         limelight.start();
         if (result.isValid() && result != null) {
-            beginPos = new Pose2d(new Vector2d(result.getBotpose().getPosition().x*39.3701, result.getBotpose().getPosition().y*39.3701), Math.toRadians(result.getBotpose().getOrientation().getYaw()));
+           // beginPos = new Pose2d(new Vector2d(result.getBotpose().getPosition().x*39.3701, result.getBotpose().getPosition().y*39.3701), Math.toRadians(result.getBotpose().getOrientation().getYaw()));
         }
         telemetry.addData("beginPosition", beginPos);
         telemetry.addData("LLValid", result.isValid());
@@ -288,10 +329,10 @@ public class robot extends LinearOpMode {
         waitForStart();
         drive = new MecanumDrive(hardwareMap, beginPos);
         drive.localizer.update();
-        blueTagHeading = Math.atan2(blueTagY-PARAMS.localizerY, blueTagX-PARAMS.localizerX);
-        blueTagDistance = Math.hypot(blueTagX-PARAMS.localizerX, blueTagY-PARAMS.localizerY);
-        redTagHeading = Math.atan2(redTagY-PARAMS.localizerY, redTagX-PARAMS.localizerX);
-        redTagDistance = Math.hypot(redTagX-PARAMS.localizerX, redTagY-PARAMS.localizerY);
+        blueGoalHeading = Math.atan2(blueGoalY -PARAMS.localizerY, blueGoalX -PARAMS.localizerX);
+        blueGoalDistance = Math.hypot(blueGoalX -PARAMS.localizerX, blueGoalY -PARAMS.localizerY);
+        redGoalHeading = Math.atan2(redGoalY -PARAMS.localizerY, redGoalX -PARAMS.localizerX);
+        redGoalDistance = Math.hypot(redGoalX -PARAMS.localizerX, redGoalY -PARAMS.localizerY);
         // aprilTag = new AprilTag("Webcam 1", hardwareMap);
 
         if (isStopRequested()){
@@ -318,18 +359,16 @@ public class robot extends LinearOpMode {
     }
     public void launcherAngleVelocity(){
         double tagDistance;
-        if (PARAMS.isRedAlliance){
-            tagDistance = redTagDistance;
+        if (isRedAlliance){
+            tagDistance = redGoalDistance;
         } else {
-            tagDistance = blueTagDistance;
+            tagDistance = blueGoalDistance;
         }
-        double vel = (Math.PI*2*power)/60;
-        hoodPosition = ((1*tagDistance)/145);
-        double ang = Math.atan((Math.pow(vel, 2)+Math.sqrt(Math.pow(vel,4) - 9.81*(9.8*Math.pow(tagDistance, 2)+ (2*1*Math.pow(vel,2)))))/(9.8*tagDistance));
-        if (ang < 30) {ang = 30;}
-        if (ang > 80) {ang = 80;}
+        //double vel = (Math.PI*2*power)/60;
+        hoodPosition = ((hoodM*tagDistance)+hoodB);
+
         //hoodPosition = 0.25 + (ang-30)*(0.95-0.25)/(80-30);
-        teleopPower =  Math.toIntExact(Math.round((14*tagDistance)+2000));
+        teleopPower =  Math.toIntExact(Math.round((launcherM*tagDistance)+launcherB));
         telemetry.addData("tagDistance", tagDistance);
         telemetry.addData("hoodPosition", hoodPosition);
         telemetry.addData("observedHoodPosition", hood.getPosition());
@@ -339,7 +378,7 @@ public class robot extends LinearOpMode {
     }
     public void setTurretPosition(double targetPosition) {
         double currentAngle = ((turretFB.getVoltage() / 3.3) * 360.0);
-        double turretTargetAngle = targetPosition;
+        double turretTargetAngle = targetPosition+8;
         double power;
         if (lastTurretPosition-currentAngle >=280){
             totalTurretRotations += 1;
@@ -461,7 +500,7 @@ public class robot extends LinearOpMode {
                 case 0:
                     Actions.runBlocking(new SequentialAction(
                             drive.actionBuilder(drive.localizer.getPose())
-                                    .splineToSplineHeading(new Pose2d(-abs(PARAMS.row1X), PARAMS.targetY, Math.toRadians(90)), Math.toRadians(90))
+                                    .strafeToLinearHeading(new Vector2d(PARAMS.row1X, PARAMS.backToY), Math.toRadians(180))
                                     .build()
                     ));
                 case 1:
@@ -495,7 +534,7 @@ public class robot extends LinearOpMode {
                                     .waitSeconds(0.2)
                                     .strafeToLinearHeading(new Vector2d(PARAMS.row2X, PARAMS.backToY), PARAMS.intakeHeading)
                                     //.splineToSplineHeading(new Pose2d(PARAMS.row2X+5, PARAMS.targetY + 5, Math.toRadians(180)), Math.toRadians(180))
-                                    .strafeToLinearHeading(new Vector2d((PARAMS.targetX + 6), PARAMS.targetY - (5* PARAMS.modifier)), Math.toRadians(PARAMS.targetHeading))
+                                    .strafeToLinearHeading(new Vector2d((PARAMS.targetX + 6), PARAMS.targetY - (5* modifier)), Math.toRadians(PARAMS.targetHeading))
                                     //.splineToSplineHeading(new Pose2d(PARAMS.targetX, PARAMS.targetY, Math.toRadians(PARAMS.targetHeading)), Math.toRadians(175))
                                     .build(),
                             new autoIntakeOff()
@@ -516,7 +555,7 @@ public class robot extends LinearOpMode {
                                     .lineToY(PARAMS.row3Y)
                                   //  .waitSeconds(0.5)
                                   //  .splineToSplineHeading(new Pose2d(PARAMS.row3X, PARAMS.targetY + 5, Math.toRadians(90)), Math.toRadians(90))
-                                    .strafeToLinearHeading(new Vector2d((PARAMS.targetX + 4), (PARAMS.targetY - (4* PARAMS.modifier))), Math.toRadians(PARAMS.targetHeading))
+                                    .strafeToLinearHeading(new Vector2d((PARAMS.targetX + 4), (PARAMS.targetY - (4* modifier))), Math.toRadians(PARAMS.targetHeading))
                                    // .splineToSplineHeading(new Pose2d(PARAMS.targetX, PARAMS.targetY, Math.toRadians(PARAMS.targetHeading)), Math.toRadians(175))
                                     .build(),
                             new autoIntakeOff()
@@ -528,6 +567,10 @@ public class robot extends LinearOpMode {
                                     .strafeToLinearHeading(new Vector2d(PARAMS.targetX, PARAMS.targetY), Math.toRadians(PARAMS.targetHeading))
                                     .build()
                     ));
+                    break;
+                case 5:
+                    Actions.runBlocking(new SleepAction(13));
+                    break;
             }
             return false;
         }
@@ -612,17 +655,15 @@ public class robot extends LinearOpMode {
             if (redAlliance) {
                 pid.turretReset();
                 drive.localizer.update();
-                turretAngle = Math.toDegrees(Math.atan2(Math.sin(Math.toRadians(redTagHeading)-drive.localizer.getPose().heading.toDouble()), Math.cos(Math.toRadians(redTagHeading)-drive.localizer.getPose().heading.toDouble())));
+                turretAngle = Math.toDegrees(Math.atan2(Math.sin(Math.toRadians(redGoalHeading)-drive.localizer.getPose().heading.toDouble()), Math.cos(Math.toRadians(redGoalHeading)-drive.localizer.getPose().heading.toDouble())));
                // setTurretPosition(PARAMS.turretAngle);
                 telemetry.addData("toRedGoal", turretAngle);
             } else {
                 pid.turretReset();
                 drive.localizer.update();
-                turretAngle = (blueTagHeading - Math.toDegrees(drive.localizer.getPose().heading.toDouble()));
-                if (Math.toDegrees(drive.localizer.getPose().heading.toDouble()) > 0) {
-                    turretAngle +=360;
-                }
-               // setTurretPosition(PARAMS.turretAngle);
+                turretAngle = Math.toDegrees(Math.atan2(Math.sin(Math.toRadians(blueGoalHeading)-drive.localizer.getPose().heading.toDouble()), Math.cos(Math.toRadians(blueGoalHeading)-drive.localizer.getPose().heading.toDouble())));
+
+                // setTurretPosition(PARAMS.turretAngle);
                 telemetry.addData("toBlueGoal", turretAngle);
 
             }
@@ -717,6 +758,10 @@ public class robot extends LinearOpMode {
         } else {
             intakeSlotContents = 0;
         }
+        indexColors(0, artifacts.get(0));
+        indexColors(1, artifacts.get(1));
+        indexColors(2, artifacts.get(2));
+
         isLaunching = abs(launcher.getVelocity()) > 10;
         if (isLaunching || intake.getPower() >0.1 || intake.getPower() < -0.1) {
             if (indexer.getPower() < 0.1) {
@@ -774,30 +819,33 @@ public class robot extends LinearOpMode {
             boolean launchStarted = false;
             feedOn();
             intake.setPower(1);
-          //  indexer.setPower(0);
-            if(auto) {
-                power = autoPower;
-            } else {
-                //power = PARAMS.teleopPower;
-                power = teleopPower;
+            indexer.setPower(0);
+            if(auto){
+                setLaunchRPM(autoPower);
             }
-            setLaunchRPM(power);
+
             while (opModeIsActive()) {
-                boolean toSpeed = abs(abs(power) - abs(getLaunchRPM())) <200;
+
 
                 if (!auto) {
-                    new turretTrack(true).run(new TelemetryPacket());
+                    //new turretTrack(true).run(new TelemetryPacket());
+                    launcherAngleVelocity();
+                    power = teleopPower;
+                    setLaunchRPM(power);
+                    turretAngle -= gamepad1.right_stick_x*5;
                     setTurretPosition(turretAngle);
                     drive.localizer.update();
                     robot.PARAMS.localizerX = drive.localizer.getPose().position.x;
                     robot.PARAMS.localizerY = drive.localizer.getPose().position.y;
-                    blueTagHeading = Math.toDegrees(Math.atan2(blueTagY-PARAMS.localizerY, blueTagX-PARAMS.localizerX));
-                    blueTagDistance = Math.hypot(blueTagX-PARAMS.localizerX, blueTagY-PARAMS.localizerY);
-                    redTagHeading = Math.toDegrees(Math.atan2(redTagY-PARAMS.localizerY, redTagX-PARAMS.localizerX));
-                    redTagDistance = Math.hypot(redTagX-PARAMS.localizerX, redTagY-PARAMS.localizerY);
-                    launcherAngleVelocity();
-                }
+                    blueGoalHeading = Math.toDegrees(Math.atan2(blueGoalY -PARAMS.localizerY, blueGoalX -PARAMS.localizerX));
+                    blueGoalDistance = Math.hypot(blueGoalX -PARAMS.localizerX, blueGoalY -PARAMS.localizerY);
+                    redGoalHeading = Math.toDegrees(Math.atan2(redGoalY -PARAMS.localizerY, redGoalX -PARAMS.localizerX));
+                    redGoalDistance = Math.hypot(redGoalX -PARAMS.localizerX, redGoalY -PARAMS.localizerY);
 
+
+
+                }
+                boolean toSpeed = abs(abs(power) - abs(getLaunchRPM())) <100;
 
                // colorLogger();
                 if(toSpeed&&!launchStarted) {
@@ -854,17 +902,26 @@ public class robot extends LinearOpMode {
                 }
                 //hood.setPosition(0.25);
 
-                if (toSpeed && time.now(TimeUnit.SECONDS) - timer < startTime + (this.shortRun ? 0.5 : 2.0)) {
-                   indexer.setPower(0.6);
-                }else if (time.now(TimeUnit.SECONDS)-timer >10){
-                    indexer.setPower(0.6);
-                }else if (time.now(TimeUnit.SECONDS)-timer > startTime+2 || time.now(TimeUnit.SECONDS)-timer >12) {
+                if (toSpeed && time.now(TimeUnit.SECONDS) - timer < startTime+1.9) {
+                    if (auto) {
+                        indexer.setPower(1);
+                    }else {
+                        indexer.setPower(0.5);
+                    }
+                }else if (time.now(TimeUnit.SECONDS)-timer >10 && time.now(TimeUnit.SECONDS)-timer <12){
+                    if (auto) {
+                        indexer.setPower(1);
+                    }else {
+                        indexer.setPower(0.5);
+                    }
+                }else if (time.now(TimeUnit.SECONDS)-timer > startTime+1.9 || time.now(TimeUnit.SECONDS)-timer >12) {
                     //indexer.setPower(0);
-                    index = PARAMS.indexCycleStart;
-                    indexer(index);
+
                     artifacts = Arrays.asList(0,0,0);
                     feedOff();
                     if(!auto){
+                        index = PARAMS.indexCycleStart;
+                        indexer(index);
                         setLaunchRPM(0);
                     }
                     break;
