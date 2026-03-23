@@ -105,11 +105,11 @@ public class AutoBackBlue extends robot {
             }else {
                 Actions.runBlocking(new SequentialAction(
                         new rowSelectAuto(4),
-                        new newLaunchCycle(true),
+                        new newLaunchCycle(true, false),
                         new rowSelectAuto(2),
-                        new newLaunchCycle(true),
+                        new newLaunchCycle(true, false),
                         new rowSelectAuto(3),
-                        new newLaunchCycle(true),
+                        new newLaunchCycle(true, false),
                         new sendAutoEndPose()
                         // new rowSelectAuto(4)
                    /* new rowSelectAuto(3),
@@ -137,4 +137,4 @@ public class AutoBackBlue extends robot {
             }
         }
     }
-}
+

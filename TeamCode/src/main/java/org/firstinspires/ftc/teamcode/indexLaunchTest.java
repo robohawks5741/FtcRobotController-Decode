@@ -26,6 +26,7 @@ public class indexLaunchTest extends robot {
     ElapsedTime changedTimer = new ElapsedTime();
     long lastChangedTime = 0;
     boolean isTeleOpRed = true;
+
     @Override
     public void runOpMode() throws InterruptedException {
         //DcMotorEx motor = hardwareMap.get(DcMotorEx.class, "motor");
@@ -46,6 +47,8 @@ public class indexLaunchTest extends robot {
         boolean launchTriggered = false;
         boolean dpadLeftPressed = false;
         boolean dpadRightPressed = false;
+        boolean indexUp = false;
+        boolean indexDown = false;
 
         Pose2d beginPose;
         //yaw of turret in robot space, 0 is center, positive is right, negative is left
@@ -93,10 +96,11 @@ public class indexLaunchTest extends robot {
         indexer(0);
 
         drive.localizer.setPose(teleOpBeginPose);
-        setTurretPosition(turretAngle);
+        setTurretPosition(targetTurretAngle);
         while (opModeIsActive()) {
             drive.updatePoseEstimate();
             result = limelight.getLatestResult();
+
             drive.localizer.update();
             robot.PARAMS.localizerX = drive.localizer.getPose().position.x;
             robot.PARAMS.localizerY = drive.localizer.getPose().position.y;
@@ -108,31 +112,62 @@ public class indexLaunchTest extends robot {
             YawPitchRollAngles orientation = imu.getRobotYawPitchRollAngles();
             limelight.updateRobotOrientation(orientation.getYaw());
             colorLogger();
-            launcherAngleVelocity();
-            if (gamepad1.dpad_left && !dpadLeftPressed) {
+            indexLoadManagement();
+
+            if (gamepad1.dpad_left || gamepad2.dpad_left && !dpadLeftPressed) {
                 totalTurretRotations -=1;
                 dpadLeftPressed = true;
-            }else if (gamepad1.dpad_right && !dpadRightPressed){
+            }else if (gamepad1.dpad_right || gamepad2.dpad_right && !dpadRightPressed){
                 totalTurretRotations +=1;
                 dpadRightPressed = true;
             }
-            if (!gamepad1.dpad_left){
+            if (!gamepad1.dpad_left && !gamepad2.dpad_left){
                 dpadLeftPressed = false;
             }
-            if (!gamepad1.dpad_right){
+            if (!gamepad1.dpad_right && !gamepad2.dpad_right){
                 dpadRightPressed = false;
             }
-            if (gamepad1.right_bumper) {
-                new turretTrack(isRedAlliance).run(new TelemetryPacket());
+
+            if (gamepad2.circle && !indexUp) {
+                index += 2;
+                if (index > 4) index = 0;
+                indexUp = true;
+            }else if (gamepad2.square && !indexDown){
+                index -= 2;
+                if (index < 0) index = 4;
+                indexDown = true;
+            }
+            if (!gamepad2.circle){
+                indexUp = false;
+            }
+            if (gamepad2.square){
+                indexDown = false;
+            }
+
+            if (gamepad1.right_bumper || gamepad2.right_bumper) {
+                targetTurretAngle -= gamepad1.right_stick_x*8;
+                turretPID.turretReset();
                 //PARAMS.turretAngle = 180;
             } else if (gamepad1.left_stick_button){
-                turretAngle = 45;
+                targetTurretAngle = 45;
             } else {
-                turretAngle -= gamepad1.right_stick_x*8;
+
+                new turretTrack(isRedAlliance).run(new TelemetryPacket());
+                if (turret1.getPower() <0.1) {
+                    turretPID.turretReset();
+                }
 
                 // turret2.setPower(0);
             }
-            setTurretPosition(turretAngle);
+            if (gamepad1.share || gamepad2.share) {
+                targetTurretAngle = 0;
+            }
+            if (result.isValid() && result != null) {
+                telemetry.addData("Target Locked?", true);
+            }
+            telemetry.addData("Updating Pose? ", updatePoseFromLimeLight());
+            drive.localizer.update();
+
             if (gamepad1.dpad_up){
                 liftL.setPower(1);
                 liftR.setPower(1);
@@ -145,7 +180,7 @@ public class indexLaunchTest extends robot {
             }
             if (gamepad1.right_trigger > 0.0) {
 
-                setLaunchRPM(6000);
+                setLaunchRPM(teleopPower);
                //launcher.setVelocity(150, AngleUnit.DEGREES);
             }else {
                 setLaunchRPM(0);
@@ -159,8 +194,11 @@ public class indexLaunchTest extends robot {
                 feedOff();
             }
             if (gamepad1.left_bumper){
-                hood.setPosition(clamp(-gamepad1.left_stick_y, 0.25, 1));
+                hoodPosition += -gamepad1.left_stick_y/4;
+                hoodPosition = clamp(gamepad1.left_stick_y, 0, 1);
+                hood.setPosition(hoodPosition);
             }else {
+                launcherAngleVelocity();
                 hood.setPosition(hoodPosition);
             }
             if (gamepad2.right_trigger >0) {
@@ -289,13 +327,14 @@ public class indexLaunchTest extends robot {
                     ),
                     -gamepad2.right_stick_x
             ));
+
             telemetry.addData("isRedAlliance", isRedAlliance);
             telemetry.addData("isTeleopRed", isTeleOpRed);
             telemetry.addData("teleOpBeginPose", teleOpBeginPose);
             telemetry.addData("light1", indexLightSignal1.getPosition());
             telemetry.addData("light2", indexLightSignal2.getPosition());
             telemetry.addData("light3", indexLightSignal3.getPosition());
-
+            telemetry.addData("localizerPose", drive.localizer.getPose());
 
             telemetry.addData("teleOpDistancePower", teleopPower);
             telemetry.addData("autoPower", autoPower);

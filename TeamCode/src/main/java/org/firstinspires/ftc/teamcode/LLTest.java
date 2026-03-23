@@ -9,7 +9,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
-@TeleOp(name="LLTest")
+@TeleOp(name="LimeLightTest")
 public class LLTest extends robot{
     public Pose2d limeLightBotpose;
     public double conversionRatio = 39.3701;
@@ -28,12 +28,13 @@ public class LLTest extends robot{
                     ),
                     -gamepad2.right_stick_x
             ));
+            result = limelight.getLatestResult();
             if(result.isValid() && result != null) {
                 limeLightBotpose = new Pose2d(new Vector2d(result.getBotpose().getPosition().x*conversionRatio, result.getBotpose().getPosition().y*conversionRatio), result.getBotpose().getOrientation().getYaw(AngleUnit.RADIANS));
-                drive.localizer.setPose(limeLightBotpose);
-                telemetry.addData("BotPose MT1",result.getBotpose());
-                telemetry.addData("2D BotPose MT1", limeLightBotpose);
-                telemetry.addData("BotPose MT2",result.getBotpose_MT2());
+                //drive.localizer.setPose(limeLightBotpose);
+                telemetry.addData("BotPose MT \n" ,result.getBotpose());
+                telemetry.addData("INCHES 2D BotPose MT1 \n", limeLightBotpose);
+                telemetry.addData("BotPose MT2 \n",result.getBotpose_MT2());
                 packet.put("x", drive.localizer.getPose().position.x);
                 packet.put("y", drive.localizer.getPose().position.y);
                 packet.put("BotPose MT1",result.getBotpose());
@@ -41,7 +42,7 @@ public class LLTest extends robot{
                 packet.put("BotPose MT2",result.getBotpose_MT2());
                 telemetry.update();
             }
-
+            telemetry.update();
 
             Drawing.drawRobot(packet.fieldOverlay(), drive.localizer.getPose());
             FtcDashboard.getInstance().sendTelemetryPacket(packet);

@@ -65,7 +65,6 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagLibrary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.qualcomm.robotcore.hardware.LED;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
@@ -125,7 +124,10 @@ public class robot extends LinearOpMode {
     int totalTurretRotations = 0;
     double lastTargetAngle = 0;
     public int modifier = 1;
+    Pose2d limeLightBotpose;
 
+    //convert meters to inches
+    double conversionRatio = 39.3701;
 
     int rotationTicker = 0;
     int lastIndex = 0;
@@ -161,23 +163,25 @@ public class robot extends LinearOpMode {
         public double indexerP = 0.000000001;
         public double indexerI = 0.00000000000000001;
         public double indexerD = 0.00000003;
-        public double turretP = 0.011;
+        public double turretP = 0.017;
         //turretP as of 3/6/2026: 0.006; (WORKING)
-        public double turretI = 0.00000000000000000001;
+        public double turretI = 0.000000001;
         //turretI as of 3/6/2026: 0.00000000000000000001;(WORKING)
-        public double turretD = 0.0000000;
+        public double turretD = 0.00000003;
         //turretD as of 3/6/2026: 0.0000000;(WORKING)
         public RevHubOrientationOnRobot orientationOnRobot;
         public int indexCycleStart = 0;
+        double turretZeroOffset = 8.5;
 
-
+        //The radius of the limelight's circle of travel when running on the turret.
+        double LLTurretRadius = 6;
 
 
 
     }
     public boolean isRedAlliance = false;
     public static Params PARAMS = new Params();
-    public double turretAngle = 0;
+    public double targetTurretAngle = 0;
     public int teleopPower = 4000;
     public int autoPower = 2150;
     public double hoodPosition = 0;
@@ -200,15 +204,17 @@ public class robot extends LinearOpMode {
     public AprilTagLibrary getTagLibrary() {
         return tagLibrary;
     }
+
+
     //VectorF redGoalVector = getTagLibrary().lookupTag(24).fieldPosition;
-    VectorF redGoalVector = new VectorF(-70, 70, 0);
+    VectorF redGoalVector = new VectorF(-62, 64, 0);
     double redGoalX = redGoalVector.get(0);
     double redGoalY = redGoalVector.get(1);
     double redGoalHeading = 0;
     double redGoalDistance = 0;
 
     //VectorF blueGoalVector = getTagLibrary().lookupTag(20).fieldPosition;
-    VectorF blueGoalVector = new VectorF(-70, -70, 0);
+    VectorF blueGoalVector = new VectorF(-62, -64, 0);
     double blueGoalX = blueGoalVector.get(0);
     double blueGoalY = blueGoalVector.get(1);
     double blueGoalHeading = 0;
@@ -340,7 +346,19 @@ public class robot extends LinearOpMode {
         }
     }
 
+    public boolean updatePoseFromLimeLight () {
+        if (abs(PARAMS.turretZeroOffset- setTurretPosition(targetTurretAngle)) <3 && result.isValid() && result != null) {
+            limeLightBotpose = new Pose2d(new Vector2d(result.getBotpose().getPosition().x*conversionRatio, result.getBotpose().getPosition().y*conversionRatio), result.getBotpose().getOrientation().getYaw(AngleUnit.RADIANS));
+            drive.localizer.setPose(limeLightBotpose);
+            indexLightSignal2.setPosition(1);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     // RETURNS INDEX OF BALL WITH SPECIFIED COLOR, OR -1 IF NOT FOUND
+    //This is great, thanks!
     public int findColorIndex(int artifactColor) {
         for (int i = 0; i < artifacts.toArray().length; i++) {
             int artifact = artifacts.get(i);
@@ -348,7 +366,7 @@ public class robot extends LinearOpMode {
         }
         return -1;
     }
-
+    //Updates the teleOpBeginPose at the end of auto
     public class sendAutoEndPose implements Action{
         @Override
         public boolean run(@NonNull TelemetryPacket telemetryPacket) {
@@ -357,6 +375,7 @@ public class robot extends LinearOpMode {
             return false;
         }
     }
+    //Sets the hood position and launch velocity
     public void launcherAngleVelocity(){
         double tagDistance;
         if (isRedAlliance){
@@ -376,9 +395,10 @@ public class robot extends LinearOpMode {
         hood.setPosition(clamp(hoodPosition, 0.25, .95));
 
     }
-    public void setTurretPosition(double targetPosition) {
+    //Sets turret position
+    public double setTurretPosition(double targetPosition) {
         double currentAngle = ((turretFB.getVoltage() / 3.3) * 360.0);
-        double turretTargetAngle = targetPosition+8;
+        double turretTargetAngle = targetPosition+PARAMS.turretZeroOffset;
         double power;
         if (lastTurretPosition-currentAngle >=280){
             totalTurretRotations += 1;
@@ -402,9 +422,10 @@ public class robot extends LinearOpMode {
         telemetry.addData("Turret Target Adjusted", turretTargetAngle + 360*totalRotations);
         telemetry.addData("Turret Power", power);
         telemetry.addData("Turret Rotations", totalTurretRotations);
-
+        return totalTurretRotation;
 
     }
+    //sets index position
     public void setIndexPosition(double targetPosition) {
        // indexer.setPosition(targetPosition);
       //  double targetPosition
@@ -415,9 +436,9 @@ public class robot extends LinearOpMode {
             indexerTargetAngle = 360;
         }*/
 
-        if (lastIndexPosition-currentAngle >=300){
+        if (lastIndexPosition-currentAngle >=280){
             totalRotations += 1;
-        } else if (lastIndexPosition - currentAngle <= -300) {
+        } else if (lastIndexPosition - currentAngle <= -280) {
             totalRotations -=1;
         }
         totalIndexRotation = currentAngle + totalRotations*360;
@@ -445,6 +466,7 @@ public class robot extends LinearOpMode {
 
     }
     // --- ROBOT)
+    //Not in use
     public void driveFieldRelative(double forward, double right, double rotate) {
         double theta = Math.atan2(forward, right);
         double r = Math.hypot(right, forward);
@@ -595,7 +617,18 @@ public class robot extends LinearOpMode {
     public double rpmToTicksPerSec(double rpm) {
         return (rpm * TICKS_PER_REV) / 60.0;
     }
-
+    public void indexLoadManagement() {
+        boolean loaded = artifacts.get(0) + artifacts.get(1) + artifacts.get(2) > 0;
+        if (loaded) {
+            PARAMS.indexerP = 0.000000001;
+            PARAMS.indexerI = 0.00000000000000001;
+            PARAMS.indexerD = 0.00000003;
+        } else {
+            PARAMS.indexerP = 0.000000001;
+            PARAMS.indexerI = 0.00000000000000001;
+            PARAMS.indexerD = 0.00000004;
+        }
+    }
     public void indexer(int position) {
         if (position < lastIndex) {
             rotationTicker += 1;
@@ -614,7 +647,7 @@ public class robot extends LinearOpMode {
             case 2:
                 //2 at intake
                 pid.indexReset();
-                setIndexPosition(0.375);
+                setIndexPosition(0.35);
                 break;
 
             case 3:
@@ -624,7 +657,7 @@ public class robot extends LinearOpMode {
             case 4:
                 //3 at intake
                 pid.indexReset();
-                setIndexPosition(0.74);
+                setIndexPosition(0.69);
                 break;
             case 5:
                 //2 at launch
@@ -655,16 +688,16 @@ public class robot extends LinearOpMode {
             if (redAlliance) {
                 pid.turretReset();
                 drive.localizer.update();
-                turretAngle = Math.toDegrees(Math.atan2(Math.sin(Math.toRadians(redGoalHeading)-drive.localizer.getPose().heading.toDouble()), Math.cos(Math.toRadians(redGoalHeading)-drive.localizer.getPose().heading.toDouble())));
+                targetTurretAngle = Math.toDegrees(Math.atan2(Math.sin(Math.toRadians(redGoalHeading)-drive.localizer.getPose().heading.toDouble()), Math.cos(Math.toRadians(redGoalHeading)-drive.localizer.getPose().heading.toDouble())));
                // setTurretPosition(PARAMS.turretAngle);
-                telemetry.addData("toRedGoal", turretAngle);
+                telemetry.addData("toRedGoal", targetTurretAngle);
             } else {
                 pid.turretReset();
                 drive.localizer.update();
-                turretAngle = Math.toDegrees(Math.atan2(Math.sin(Math.toRadians(blueGoalHeading)-drive.localizer.getPose().heading.toDouble()), Math.cos(Math.toRadians(blueGoalHeading)-drive.localizer.getPose().heading.toDouble())));
+                targetTurretAngle = Math.toDegrees(Math.atan2(Math.sin(Math.toRadians(blueGoalHeading)-drive.localizer.getPose().heading.toDouble()), Math.cos(Math.toRadians(blueGoalHeading)-drive.localizer.getPose().heading.toDouble())));
 
                 // setTurretPosition(PARAMS.turretAngle);
-                telemetry.addData("toBlueGoal", turretAngle);
+                telemetry.addData("toBlueGoal", targetTurretAngle);
 
             }
            // telemetry.addData("turretPower", power);
@@ -747,10 +780,10 @@ public class robot extends LinearOpMode {
         double purple2 = (color2.red()+color2.blue())/2;
         double green2 = color2.green();
 
-        boolean isPurp1 = purple1 >150 && purple1 - green1 > 50;
-        boolean isGreen1 = green1 > 150 && green1 - purple1 > 50;
-        boolean isPurp2 = purple2 >150 && purple2 - green2 > 50;
-        boolean isGreen2 = green2 > 150 && green2 - purple2 > 50;
+        boolean isPurp1 = purple1 >175 && purple1 - green1 > 100;
+        boolean isGreen1 = green1 > 175 && green1 - purple1 > 100;
+        boolean isPurp2 = purple2 >175 && purple2 - green2 > 100;
+        boolean isGreen2 = green2 > 175 && green2 - purple2 > 100;
         if (isGreen1||isGreen2) {
             intakeSlotContents = 2;
         } else if (isPurp1|isPurp2) {
@@ -758,9 +791,9 @@ public class robot extends LinearOpMode {
         } else {
             intakeSlotContents = 0;
         }
-        indexColors(0, artifacts.get(0));
-        indexColors(1, artifacts.get(1));
-        indexColors(2, artifacts.get(2));
+        lightUpdate(0, artifacts.get(0));
+        lightUpdate(1, artifacts.get(1));
+        lightUpdate(2, artifacts.get(2));
 
         isLaunching = abs(launcher.getVelocity()) > 10;
         if (isLaunching || intake.getPower() >0.1 || intake.getPower() < -0.1) {
@@ -828,12 +861,14 @@ public class robot extends LinearOpMode {
 
 
                 if (!auto) {
-                    //new turretTrack(true).run(new TelemetryPacket());
+                    if (gamepad1.right_bumper) {
+                        new turretTrack(isRedAlliance).run(new TelemetryPacket());
+                    }
                     launcherAngleVelocity();
                     power = teleopPower;
                     setLaunchRPM(power);
-                    turretAngle -= gamepad1.right_stick_x*5;
-                    setTurretPosition(turretAngle);
+                    targetTurretAngle -= gamepad1.right_stick_x*5;
+                    setTurretPosition(targetTurretAngle);
                     drive.localizer.update();
                     robot.PARAMS.localizerX = drive.localizer.getPose().position.x;
                     robot.PARAMS.localizerY = drive.localizer.getPose().position.y;
