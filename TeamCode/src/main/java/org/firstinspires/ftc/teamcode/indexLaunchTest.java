@@ -100,7 +100,7 @@ public class indexLaunchTest extends robot {
         while (opModeIsActive()) {
             drive.updatePoseEstimate();
             result = limelight.getLatestResult();
-
+            telemetry.addData("Updating Pose? ", updatePoseFromLimeLight());
             drive.localizer.update();
             robot.PARAMS.localizerX = drive.localizer.getPose().position.x;
             robot.PARAMS.localizerY = drive.localizer.getPose().position.y;
@@ -144,39 +144,33 @@ public class indexLaunchTest extends robot {
                 indexDown = false;
             }
 
-            if (gamepad1.right_bumper || gamepad2.right_bumper) {
+            //MANUAL TURRET CONTROL
+            if (gamepad1.right_bumper || gamepad2.triangle) {
                 targetTurretAngle -= gamepad1.right_stick_x*8;
+                targetTurretAngle -= gamepad2.right_stick_x*8;
                 turretPID.turretReset();
                 //PARAMS.turretAngle = 180;
-            } else if (gamepad1.left_stick_button){
-                targetTurretAngle = 45;
-            } else {
+            } else if (gamepad1.share || gamepad2.share){ //TURRET TO ZERO POSITION
+                targetTurretAngle = 0;
+            } else { //DEFAULT: AUTOMATIC TURRET CONTROL
 
                 new turretTrack(isRedAlliance).run(new TelemetryPacket());
-                if (turret1.getPower() <0.1) {
-                    turretPID.turretReset();
-                }
 
-                // turret2.setPower(0);
             }
-            if (gamepad1.share || gamepad2.share) {
-                targetTurretAngle = 0;
-            }
+
             if (result.isValid() && result != null) {
                 telemetry.addData("Target Locked?", true);
             }
-            telemetry.addData("Updating Pose? ", updatePoseFromLimeLight());
             drive.localizer.update();
 
             if (gamepad1.dpad_up){
                 liftL.setPower(1);
-                liftR.setPower(1);
+
             } else if (gamepad1.dpad_down) {
                 liftL.setPower(-1);
-                liftR.setPower(-1);
+
             } else {
                 liftL.setPower(0);
-                liftR.setPower(0);
             }
             if (gamepad1.right_trigger > 0.0) {
 
@@ -258,7 +252,9 @@ public class indexLaunchTest extends robot {
             } else if (changingValue == 2) {
                 Kd += changeValue;
             }
-            if (gamepad1.right_stick_button) {
+
+            //TRIGGER AUTOMATIC LAUNCH CYCLE
+            if (gamepad1.right_stick_button || gamepad2.right_bumper) {
                 if (!launchTriggered) {
                   //  Actions.runBlocking(new launchCycle()/*, new setPowers()*/);
                     new newLaunchCycle(false, true).run(new TelemetryPacket());
@@ -270,43 +266,6 @@ public class indexLaunchTest extends robot {
             }
           //  double TX2 = 0;
             //double TX3 = 0;
-
-            if (result != null && result.isValid()) {
-                TX = result.getTx();
-                telemetry.addData("Target X", TX);
-                // telemetry.addData("Target X2", TX2);
-                //telemetry.addData("Target X3", TX3);
-
-              /*  if (gamepad1.cross) {
-                    new turretTrack();
-                }*/
-                // turretYawRobot = result.getBotpose().getOrientation().getYaw(AngleUnit.DEGREES) - drive.localizer.getPose().heading.toDouble();
-                //turretYawRobot2 = result.getFiducialResults().get(0).getTargetXDegrees() - drive.localizer.getPose().heading.toDouble();
-                // telemetry.addData("Target Y", ty);
-                //telemetry.addData("Target Area", ta);
-
-
-            } else {
-                pid.lastError = 0;
-                pid.integralSum = 0;
-                pid.time = new ElapsedTime();
-                telemetry.addData("Limelight", "No Targets");
-                //turret2.getController().getServoPosition(2);
-               /* if (gamepad1.cross) {
-                    turret2.setPower(
-                            -pid.PIDControl(Kp, Ki, Kd, Math.atan2(drive.localizer.getPose().position.x - (-58.31), drive.localizer.getPose().position.y - (55.64)), turretYawRobot + drive.localizer.getPose().heading.toDouble())
-                    );
-                    turret1.setPower(
-                            -pid.PIDControl(Kp, Ki, Kd, Math.atan2(drive.localizer.getPose().position.x - (-58.31), drive.localizer.getPose().position.y - (55.64)), turretYawRobot + drive.localizer.getPose().heading.toDouble())
-                    );
-                }else {
-                    turret1.setPower(0);
-                }*/
-
-            }
-            if (abs(TX) < 4) {
-                telemetry.addData("Target:", "Acquired");
-            }
 
 
                 /*   }else {

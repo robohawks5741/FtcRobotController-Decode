@@ -53,6 +53,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.ColorSensor;
+import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.IMU;
 
@@ -83,13 +84,13 @@ public class robot extends LinearOpMode {
     AnalogInput turretFB;
     DcMotorEx launcher;
     DcMotorEx liftL;
-    DcMotorEx liftR;
+    //DcMotorEx liftR;
     double turnVector;
     DcMotorEx intake;
     CRServo launchFeedL;
     CRServo launchFeedR;
     CRServo indexer;
-    public CRServo turret1;
+    DcMotorEx turret1;
     //CRServo turret2;
     Servo hood;
     Servo feed;
@@ -261,7 +262,7 @@ public class robot extends LinearOpMode {
         indexFB = hardwareMap.get(AnalogInput.class, "indexFB");
         // Servo feed = hardwareMap.get(Servo.class, "feed");
         intake = hardwareMap.get(DcMotorEx.class, "intake");
-        turret1 = hardwareMap.get(CRServo.class, "turret1");
+        turret1 = hardwareMap.get(DcMotorEx.class, "turret1");
         turretFB = hardwareMap.get(AnalogInput.class, "turretFB");
         //turret2 = hardwareMap.get(CRServo.class, "turret2");
        // feed = hardwareMap.get(Servo.class, "feed");
@@ -272,7 +273,7 @@ public class robot extends LinearOpMode {
         color1 = hardwareMap.get(ColorSensor.class, "color1");
         color2 = hardwareMap.get(ColorSensor.class, "color2");
         liftL = hardwareMap.get(DcMotorEx.class, "liftL");
-        liftR = hardwareMap.get(DcMotorEx.class, "liftR");
+       // liftR = hardwareMap.get(DcMotorEx.class, "liftR");
 
         indexLightSignal1 = hardwareMap.get(Servo.class, "light1");
         indexLightSignal2 = hardwareMap.get(Servo.class, "light2");
@@ -282,7 +283,7 @@ public class robot extends LinearOpMode {
         //turret2.scaleRange(.25, 0.75);
        // indexer.scaleRange(0, 1);
         // turret1.getController().
-        turret1.setDirection(CRServo.Direction.FORWARD);
+        turret1.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         turret1.setPower(0);
 
         indexLightSignal1 = hardwareMap.get(Servo.class, "light1");
@@ -395,8 +396,16 @@ public class robot extends LinearOpMode {
         hood.setPosition(clamp(hoodPosition, 0.25, .95));
 
     }
-    //Sets turret position
+    //Sets turret
+
     public double setTurretPosition(double targetPosition) {
+        double ticksPerDegree = 1.068;
+        double currentAngle = turret1.getCurrentPosition()/ticksPerDegree;
+        double outputAngle = targetPosition*ticksPerDegree;
+        turret1.setTargetPosition(Math.toIntExact(Math.round(outputAngle)));
+        return currentAngle;
+    }
+    public double oldSetTurretPosition(double targetPosition) {
         double currentAngle = ((turretFB.getVoltage() / 3.3) * 360.0);
         double turretTargetAngle = targetPosition+PARAMS.turretZeroOffset;
         double power;
@@ -685,6 +694,9 @@ public class robot extends LinearOpMode {
         }
         @Override
         public boolean run(@NonNull TelemetryPacket telemetryPacket) {
+            if (turret1.getPower() <0.1) {
+                turretPID.turretReset();
+            }
             if (redAlliance) {
                 pid.turretReset();
                 drive.localizer.update();
