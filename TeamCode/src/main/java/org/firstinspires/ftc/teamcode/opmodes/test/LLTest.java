@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.opmodes.test;
 
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
@@ -8,6 +8,8 @@ import com.acmerobotics.roadrunner.Vector2d;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.teamcode.robot;
+import org.firstinspires.ftc.teamcode.util.Drawing;
 
 @TeleOp(name="LimeLightTest")
 public class LLTest extends robot{
@@ -29,7 +31,7 @@ public class LLTest extends robot{
                     -gamepad2.right_stick_x
             ));
             result = limelight.getLatestResult();
-            if(result.isValid() && result != null) {
+            if(result != null && result.isValid()) {
                 limeLightBotpose = new Pose2d(new Vector2d(result.getBotpose().getPosition().x*conversionRatio, result.getBotpose().getPosition().y*conversionRatio), result.getBotpose().getOrientation().getYaw(AngleUnit.RADIANS));
                 //drive.localizer.setPose(limeLightBotpose);
                 telemetry.addData("BotPose MT \n" ,result.getBotpose());
