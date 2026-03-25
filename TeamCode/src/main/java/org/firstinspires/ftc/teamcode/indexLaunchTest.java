@@ -195,6 +195,11 @@ public class indexLaunchTest extends robot {
                 x = false;
             }*/
 
+            if (gamepad2.circle) {
+                freeIntake();
+
+            }
+
             if (gamepad1.square) {
                 index = 0;
                 indexer(index);
