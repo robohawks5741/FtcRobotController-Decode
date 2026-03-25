@@ -1,7 +1,12 @@
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.opmodes.teleop;
 
 import static androidx.core.math.MathUtils.clamp;
 import static java.lang.Math.abs;
+
+import org.firstinspires.ftc.teamcode.RobotConstants;
+import org.firstinspires.ftc.teamcode.robot;
+import org.firstinspires.ftc.teamcode.util.Drawing;
+import org.firstinspires.ftc.teamcode.util.PID;
 
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
@@ -37,10 +42,9 @@ public class indexLaunchTest extends robot {
             teleOpBeginPose = beginPos;
         }
       //  launcher.setVelocityPIDFCoefficients(0.4,0.001,0.3, 4);
-        double Kp = PARAMS.Kp;
-        double Ki = PARAMS.Ki;
-        //double Kd = 0.000000045;
-        double Kd = PARAMS.Kd;
+        double Kp = RobotConstants.DriveControl.kP;
+        double Ki = RobotConstants.DriveControl.kI;
+        double Kd = RobotConstants.DriveControl.kD;
         double changingValue = 0;
 
         boolean x = false;
@@ -104,11 +108,10 @@ public class indexLaunchTest extends robot {
             drive.localizer.update();
             robot.PARAMS.localizerX = drive.localizer.getPose().position.x;
             robot.PARAMS.localizerY = drive.localizer.getPose().position.y;
-            blueGoalHeading = Math.toDegrees(Math.atan2(blueGoalY -PARAMS.localizerY, blueGoalX -PARAMS.localizerX));
-            blueGoalDistance = Math.hypot(blueGoalX -PARAMS.localizerX, blueGoalY -PARAMS.localizerY);
-            redGoalHeading = Math.toDegrees(Math.atan2(redGoalY -PARAMS.localizerY, redGoalX -PARAMS.localizerX));
-            redGoalDistance = Math.hypot(redGoalX -PARAMS.localizerX, redGoalY -PARAMS.localizerY);
-           // drive.localizer.setPose(result.getBotpose());
+            blueGoalHeading = Math.toDegrees(Math.atan2(blueGoalY - PARAMS.localizerY, blueGoalX - PARAMS.localizerX));
+            blueGoalDistance = Math.hypot(blueGoalX - PARAMS.localizerX, blueGoalY - PARAMS.localizerY);
+            redGoalHeading = Math.toDegrees(Math.atan2(redGoalY - PARAMS.localizerY, redGoalX - PARAMS.localizerX));
+            redGoalDistance = Math.hypot(redGoalX - PARAMS.localizerX, redGoalY - PARAMS.localizerY);
             YawPitchRollAngles orientation = imu.getRobotYawPitchRollAngles();
             limelight.updateRobotOrientation(orientation.getYaw());
             colorLogger();
@@ -146,19 +149,18 @@ public class indexLaunchTest extends robot {
 
             //MANUAL TURRET CONTROL
             if (gamepad1.right_bumper || gamepad2.triangle) {
-                targetTurretAngle -= gamepad1.right_stick_x*8;
-                targetTurretAngle -= gamepad2.right_stick_x*8;
+                targetTurretAngle -= gamepad1.right_stick_x * 8;
+                targetTurretAngle -= gamepad2.right_stick_x * 8;
                 turretPID.turretReset();
-                //PARAMS.turretAngle = 180;
-            } else if (gamepad1.share || gamepad2.share){ //TURRET TO ZERO POSITION
+            } else if (gamepad1.share || gamepad2.share) { //TURRET TO ZERO POSITION
                 targetTurretAngle = 0;
             } else { //DEFAULT: AUTOMATIC TURRET CONTROL
-
-                new turretTrack(isRedAlliance).run(new TelemetryPacket());
-
+                updateTurretTracking(isRedAlliance);
             }
+            // Always actuate turret every loop
+            setTurretPosition(targetTurretAngle);
 
-            if (result.isValid() && result != null) {
+            if (result != null && result.isValid()) {
                 telemetry.addData("Target Locked?", true);
             }
             drive.localizer.update();
@@ -188,12 +190,10 @@ public class indexLaunchTest extends robot {
                 feedOff();
             }
             if (gamepad1.left_bumper){
-                hoodPosition += -gamepad1.left_stick_y/4;
                 hoodPosition = clamp(gamepad1.left_stick_y, 0, 1);
                 hood.setPosition(hoodPosition);
-            }else {
+            } else {
                 launcherAngleVelocity();
-                hood.setPosition(hoodPosition);
             }
             if (gamepad2.right_trigger >0) {
                 setIntakePower(1);
@@ -303,13 +303,12 @@ public class indexLaunchTest extends robot {
             telemetry.addData("teleOpDistancePower", teleopPower);
             telemetry.addData("autoPower", autoPower);
             telemetry.addData("turretPOWER", turret1.getPower());
-            telemetry.addData("redTagX", redGoalX);
-            telemetry.addData("redTagY", redGoalY);
-            telemetry.addData("redTagVector", redGoalVector);
-            telemetry.addData("redTagHeading", redGoalHeading);
-
-            telemetry.addData("blueTagVector", blueGoalVector);
-            telemetry.addData("blueTagHeading", blueGoalHeading);
+            telemetry.addData("redGoalX", redGoalX);
+            telemetry.addData("redGoalY", redGoalY);
+            telemetry.addData("redGoalHeading", redGoalHeading);
+            telemetry.addData("redGoalDist", redGoalDistance);
+            telemetry.addData("blueGoalHeading", blueGoalHeading);
+            telemetry.addData("blueGoalDist", blueGoalDistance);
             telemetry.addData("Launcher Velocity", launcher.getVelocity(AngleUnit.DEGREES));
           //  telemetry.addData("Launcher Velocity Target", );
             telemetry.addData("Launcher Velocity Adjusted", launcher.getVelocity(AngleUnit.DEGREES)*19.1);

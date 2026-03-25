@@ -1,18 +1,26 @@
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.opmodes.test;
+
+import static androidx.core.math.MathUtils.clamp;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
 
-@TeleOp(name="motorTest")
-public class motorTester extends LinearOpMode {
+@TeleOp(name="launchTest")
+public class launchTester extends LinearOpMode {
     @Override
     public void runOpMode() throws InterruptedException {
         DcMotorEx motor = hardwareMap.get(DcMotorEx.class, "motor");
+        Servo hood = hardwareMap.get(Servo.class, "hood");
+        CRServo feed = hardwareMap.get(CRServo.class, "feed");
+        DcMotorEx intake = hardwareMap.get(DcMotorEx.class, "intake");
+
         motor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         motor.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
         motor.setVelocityPIDFCoefficients(0.3,0.0,0.3, 4);
@@ -28,6 +36,14 @@ public class motorTester extends LinearOpMode {
             }else {
                 motor.setPower(0.0);
             }
+            if (gamepad1.left_bumper){
+                hood.setPosition(clamp(gamepad1.left_stick_y, 0.0, 0.95));
+            }
+            if (gamepad1.y) {
+                intake.setPower(1);
+            }else {
+                intake.setPower(0);
+            }
             telemetry.addData("Power", motor.getPower());
             telemetry.addData("RPM", motor.getVelocity(AngleUnit.DEGREES));
             telemetry.addData("RPM Adjusted", motor.getVelocity(AngleUnit.DEGREES)*20);
@@ -35,6 +51,7 @@ public class motorTester extends LinearOpMode {
             telemetry.addData("Right Stick Y", gamepad1.right_stick_y);
             //telemetry.addData("Left Trigger", gamepad1.left_trigger);
             telemetry.addData("Current", motor.getCurrent(CurrentUnit.AMPS));
+            telemetry.addData("Hood Position", hood.getPosition());
             telemetry.update();
 
         }
