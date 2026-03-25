@@ -474,6 +474,25 @@ public class robot extends LinearOpMode {
 
 
     }
+
+    public void freeIntake() {
+        for (int i = 0; i < 3; i++) {
+            if (artifacts.get(i) == 0) {
+                switch (i) {
+                    case 0:
+                        setIndexPosition(0);
+                        break;
+                    case 1:
+                        setIndexPosition(2);
+                        break;
+                    case 2:
+                        setIndexPosition(4);
+                        break;
+                }
+            }
+        }
+    }
+
     // --- ROBOT)
     //Not in use
     public void driveFieldRelative(double forward, double right, double rotate) {
