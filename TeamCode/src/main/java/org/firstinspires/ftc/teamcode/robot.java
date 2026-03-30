@@ -53,11 +53,13 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.ColorSensor;
+import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.IMU;
 
-import org.firstinspires.ftc.robotcore.external.matrices.VectorF;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.teamcode.util.AprilTag;
+import org.firstinspires.ftc.teamcode.util.PID;
 import org.firstinspires.ftc.teamcode.subsystems.MecanumDrive;
 import org.firstinspires.ftc.teamcode.subsystems.PinpointLocalizer;
 import org.firstinspires.ftc.vision.apriltag.AprilTagGameDatabase;
@@ -65,7 +67,6 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagLibrary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
@@ -78,112 +79,90 @@ import java.util.concurrent.TimeUnit;
 public class robot extends LinearOpMode {
 
     private static final Logger log = LoggerFactory.getLogger(robot.class);
-    AprilTag aprilTag;
-    AnalogInput indexFB;
-    AnalogInput turretFB;
-    DcMotorEx launcher;
-    DcMotorEx liftL;
-    DcMotorEx liftR;
-    double turnVector;
-    DcMotorEx intake;
-    CRServo launchFeedL;
-    CRServo launchFeedR;
-    CRServo indexer;
-    public CRServo turret1;
-    //CRServo turret2;
-    Servo hood;
-    Servo feed;
-    ColorSensor color1;
-    ColorSensor color2;
+    protected AprilTag aprilTag;
+    protected AnalogInput indexFB;
+    protected AnalogInput turretFB;
+    protected DcMotorEx launcher;
+    protected DcMotorEx liftL;
+    protected double turnVector;
+    protected DcMotorEx intake;
+    protected CRServo launchFeedL;
+    protected CRServo launchFeedR;
+    protected CRServo indexer;
+    public DcMotorEx turret1;
+    protected Servo hood;
+    protected Servo feed;
+    protected ColorSensor color1;
+    protected ColorSensor color2;
 
-    Servo indexLightSignal1;
-    Servo indexLightSignal2;
-    Servo indexLightSignal3;
+    protected Servo indexLightSignal1;
+    protected Servo indexLightSignal2;
+    protected Servo indexLightSignal3;
 
     public MecanumDrive drive;
 
-    public double TICKS_PER_REV = 384.5;
+    public double TICKS_PER_REV = RobotConstants.Misc.ticksPerRev;
 
-    // PIDF for launcher motors (example values, tune these)
-    public static final PIDFCoefficients LAUNCH_PIDF =
-            new PIDFCoefficients(10, 3, 0.5, 12);
-
-    int lastPosLeft;
-    int lastPosRight;
-    long lastTime;
-    int index = 0;
-    int power = 3400;
-    boolean isLaunching;
-    PinpointLocalizer PinpointLocalizer;
-    IMU imu;
-    double lastIndexPosition;
-    double totalIndexRotation = 0;
-    int totalRotations = 0;
-    double lastTurretPosition = 0;
-    double totalTurretRotation = 0;
-    int totalTurretRotations = 0;
-    double lastTargetAngle = 0;
+    protected int lastPosLeft;
+    protected int lastPosRight;
+    protected long lastTime;
+    protected int index = 0;
+    protected int power = 3400;
+    protected boolean isLaunching;
+    protected PinpointLocalizer PinpointLocalizer;
+    protected IMU imu;
+    protected double lastIndexPosition;
+    protected double totalIndexRotation = 0;
+    protected int totalRotations = 0;
+    protected double lastTurretPosition = 0;
+    protected double totalTurretRotation = 0;
+    protected int totalTurretRotations = 0;
+    protected double lastTargetAngle = 0;
     public int modifier = 1;
-    Pose2d limeLightBotpose;
+    protected Pose2d limeLightBotpose;
 
-    //convert meters to inches
-    double conversionRatio = 39.3701;
+    protected double conversionRatio = RobotConstants.Misc.conversionRatio;
 
     int rotationTicker = 0;
     int lastIndex = 0;
     boolean indexCC = true;
+    // Runtime state (computed per-alliance, not tunable constants)
     public static class Params {
-        
-
-        public double beginPosX = 65;
-        public double beginPosY = 11;
+        public double beginPosX = RobotConstants.StartPositions.beginPosX;
+        public double beginPosY = RobotConstants.StartPositions.beginPosY;
         public double localizerX = beginPosX;
         public double localizerY = beginPosY;
-        public double beginHeading = Math.toRadians(180);
-        public double targetX = -53;
-    public double targetY = 25;
-        public double row1X = 34.5;
-        public double row1Y = 68;
-        public double row2X = 10;
-        public double row2Y = 69;
-        public double row3X = -13;
-        public double row3Y = 62;
-        public double backToY = 25;
+        public double beginHeading = RobotConstants.StartPositions.beginHeading;
+        public double targetX = RobotConstants.AutoPaths.targetX;
+        public double targetY = RobotConstants.AutoPaths.targetY;
+        public double row1X = RobotConstants.AutoPaths.row1X;
+        public double row1Y = RobotConstants.AutoPaths.row1Y;
+        public double row2X = RobotConstants.AutoPaths.row2X;
+        public double row2Y = RobotConstants.AutoPaths.row2Y;
+        public double row3X = RobotConstants.AutoPaths.row3X;
+        public double row3Y = RobotConstants.AutoPaths.row3Y;
+        public double backToY = RobotConstants.AutoPaths.backToY;
         public double row1CheckY = row1Y;
         public double row2CheckY = row2Y;
         public double row3CheckY = row3Y;
         public double intakeHeading = Math.toRadians(90);
         public double endX = 30;
         public double endY = -20;
-        public double targetHeading = 110;
-        public double Kp = 0.01;
-        public double Ki = 0.0000001;
-        //double Kd = 0.000000045;
-        public double Kd = 0.4;
-        public double indexerP = 0.000000001;
-        public double indexerI = 0.00000000000000001;
-        public double indexerD = 0.00000003;
-        public double turretP = 0.017;
-        //turretP as of 3/6/2026: 0.006; (WORKING)
-        public double turretI = 0.000000001;
-        //turretI as of 3/6/2026: 0.00000000000000000001;(WORKING)
-        public double turretD = 0.00000003;
-        //turretD as of 3/6/2026: 0.0000000;(WORKING)
-        public RevHubOrientationOnRobot orientationOnRobot;
+        public double targetHeading = RobotConstants.AutoPaths.targetHeading;
+        public double turretP = RobotConstants.TurretPID.kP;
+        public double turretI = RobotConstants.TurretPID.kI;
+        public double turretD = RobotConstants.TurretPID.kD;
+        public double turretZeroOffset = RobotConstants.TurretPID.zeroOffset;
+        public double indexerP = RobotConstants.IndexerPID.kP;
+        public double indexerI = RobotConstants.IndexerPID.kI;
+        public double indexerD = RobotConstants.IndexerPID.kD;
         public int indexCycleStart = 0;
-        double turretZeroOffset = 8.5;
-
-        //The radius of the limelight's circle of travel when running on the turret.
-        double LLTurretRadius = 6;
-
-
-
     }
     public boolean isRedAlliance = false;
     public static Params PARAMS = new Params();
     public double targetTurretAngle = 0;
-    public int teleopPower = 4000;
-    public int autoPower = 2150;
+    public int teleopPower = RobotConstants.LauncherCalibration.teleopPower;
+    public int autoPower = RobotConstants.LauncherCalibration.autoPower;
     public double hoodPosition = 0;
     public Pose2d beginPos = new Pose2d(new Vector2d(PARAMS.beginPosX, PARAMS.beginPosY), PARAMS.beginHeading);
     public static Pose2d teleOpBeginPose;
@@ -194,11 +173,11 @@ public class robot extends LinearOpMode {
         double theta = PinpointLocalizer.getPose().heading.toDouble();
         return new Pose2d(x, y, theta);
     }
-    PID pid;
-    PID indexPID;
-    PID turretPID;
-    Limelight3A limelight;
-    LLResult result;
+    protected PID pid;
+    protected PID indexPID;
+    protected PID turretPID;
+    protected Limelight3A limelight;
+    protected LLResult result;
     public AprilTagLibrary tagLibrary = AprilTagGameDatabase.getDecodeTagLibrary();
 
     public AprilTagLibrary getTagLibrary() {
@@ -206,25 +185,17 @@ public class robot extends LinearOpMode {
     }
 
 
-    //VectorF redGoalVector = getTagLibrary().lookupTag(24).fieldPosition;
-    VectorF redGoalVector = new VectorF(-62, 64, 0);
-    double redGoalX = redGoalVector.get(0);
-    double redGoalY = redGoalVector.get(1);
-    double redGoalHeading = 0;
-    double redGoalDistance = 0;
+    protected double redGoalX = RobotConstants.FieldPositions.redGoalX;
+    protected double redGoalY = RobotConstants.FieldPositions.redGoalY;
+    protected double redGoalHeading = 0;
+    protected double redGoalDistance = 0;
 
-    //VectorF blueGoalVector = getTagLibrary().lookupTag(20).fieldPosition;
-    VectorF blueGoalVector = new VectorF(-62, -64, 0);
-    double blueGoalX = blueGoalVector.get(0);
-    double blueGoalY = blueGoalVector.get(1);
-    double blueGoalHeading = 0;
-    double blueGoalDistance = 0;
-    double launcherM = 12.25;//slope of linear velocity adjustment
-    double launcherB = 1500;//Y-Int of linear Velocity adjustment
-    double hoodM = 0.7/145;//slope of linear hood adjustment
-    double hoodB = 0.25;//Y-Int of linear hood adjustment
+    protected double blueGoalX = RobotConstants.FieldPositions.blueGoalX;
+    protected double blueGoalY = RobotConstants.FieldPositions.blueGoalY;
+    protected double blueGoalHeading = 0;
+    protected double blueGoalDistance = 0;
 
-    List<Integer> artifacts;
+    protected List<Integer> artifacts;
     @Override
     public void runOpMode() throws InterruptedException {
 
@@ -261,7 +232,7 @@ public class robot extends LinearOpMode {
         indexFB = hardwareMap.get(AnalogInput.class, "indexFB");
         // Servo feed = hardwareMap.get(Servo.class, "feed");
         intake = hardwareMap.get(DcMotorEx.class, "intake");
-        turret1 = hardwareMap.get(CRServo.class, "turret1");
+        turret1 = hardwareMap.get(DcMotorEx.class, "turret1");
         turretFB = hardwareMap.get(AnalogInput.class, "turretFB");
         //turret2 = hardwareMap.get(CRServo.class, "turret2");
        // feed = hardwareMap.get(Servo.class, "feed");
@@ -272,7 +243,7 @@ public class robot extends LinearOpMode {
         color1 = hardwareMap.get(ColorSensor.class, "color1");
         color2 = hardwareMap.get(ColorSensor.class, "color2");
         liftL = hardwareMap.get(DcMotorEx.class, "liftL");
-        liftR = hardwareMap.get(DcMotorEx.class, "liftR");
+       // liftR = hardwareMap.get(DcMotorEx.class, "liftR");
 
         indexLightSignal1 = hardwareMap.get(Servo.class, "light1");
         indexLightSignal2 = hardwareMap.get(Servo.class, "light2");
@@ -282,7 +253,7 @@ public class robot extends LinearOpMode {
         //turret2.scaleRange(.25, 0.75);
        // indexer.scaleRange(0, 1);
         // turret1.getController().
-        turret1.setDirection(CRServo.Direction.FORWARD);
+        turret1.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         turret1.setPower(0);
 
         indexLightSignal1 = hardwareMap.get(Servo.class, "light1");
@@ -296,7 +267,9 @@ public class robot extends LinearOpMode {
         pid = new PID();
         indexPID = new PID();
         turretPID = new PID();
-        launcher.setVelocityPIDFCoefficients(22, 0.3, 0, 12);
+        launcher.setVelocityPIDFCoefficients(
+                RobotConstants.LauncherPID.kP, RobotConstants.LauncherPID.kI,
+                RobotConstants.LauncherPID.kD, RobotConstants.LauncherPID.kF);
       //  launchFeed.setDirection(DcMotorSimple.Direction.FORWARD);
 
         imu = hardwareMap.get(IMU.class, "imu");
@@ -325,7 +298,7 @@ public class robot extends LinearOpMode {
         //PinpointLocalizer.setPose(PARAMS.beginPos);
         imu.initialize(new IMU.Parameters(orientationOnRobot));
         limelight.start();
-        if (result.isValid() && result != null) {
+        if (result != null && result.isValid()) {
            // beginPos = new Pose2d(new Vector2d(result.getBotpose().getPosition().x*39.3701, result.getBotpose().getPosition().y*39.3701), Math.toRadians(result.getBotpose().getOrientation().getYaw()));
         }
         telemetry.addData("beginPosition", beginPos);
@@ -346,8 +319,22 @@ public class robot extends LinearOpMode {
         }
     }
 
+    public double getTurretPosition() {
+        double currentAngle = ((turretFB.getVoltage() / 3.3) * 360.0);
+        if (lastTurretPosition - currentAngle >= 280) {
+            totalTurretRotations += 1;
+        } else if (lastTurretPosition - currentAngle <= -280) {
+            totalTurretRotations -= 1;
+        }
+        totalTurretRotation = (currentAngle + totalTurretRotations * 360) / 4.167;
+        lastTurretPosition = currentAngle;
+        return totalTurretRotation;
+    }
+
     public boolean updatePoseFromLimeLight () {
-        if (abs(PARAMS.turretZeroOffset- setTurretPosition(targetTurretAngle)) <3 && result.isValid() && result != null) {
+        double turretPos = getTurretPosition();
+        double turretTarget = targetTurretAngle + PARAMS.turretZeroOffset;
+        if (result != null && result.isValid() && abs(turretTarget - turretPos) < 3) {
             limeLightBotpose = new Pose2d(new Vector2d(result.getBotpose().getPosition().x*conversionRatio, result.getBotpose().getPosition().y*conversionRatio), result.getBotpose().getOrientation().getYaw(AngleUnit.RADIANS));
             drive.localizer.setPose(limeLightBotpose);
             indexLightSignal2.setPosition(1);
@@ -375,51 +362,49 @@ public class robot extends LinearOpMode {
             return false;
         }
     }
-    //Sets the hood position and launch velocity
+    //Sets the hood position and launch velocity based on distance to goal
     public void launcherAngleVelocity(){
-        double tagDistance;
-        if (isRedAlliance){
-            tagDistance = redGoalDistance;
-        } else {
-            tagDistance = blueGoalDistance;
-        }
-        //double vel = (Math.PI*2*power)/60;
-        hoodPosition = ((hoodM*tagDistance)+hoodB);
+        double tagDistance = isRedAlliance ? redGoalDistance : blueGoalDistance;
 
-        //hoodPosition = 0.25 + (ang-30)*(0.95-0.25)/(80-30);
-        teleopPower =  Math.toIntExact(Math.round((launcherM*tagDistance)+launcherB));
+        hoodPosition = (RobotConstants.LauncherCalibration.hoodM * tagDistance) + RobotConstants.LauncherCalibration.hoodB;
+        teleopPower = Math.toIntExact(Math.round(
+                (RobotConstants.LauncherCalibration.launcherM * tagDistance) + RobotConstants.LauncherCalibration.launcherB));
+
         telemetry.addData("tagDistance", tagDistance);
         telemetry.addData("hoodPosition", hoodPosition);
         telemetry.addData("observedHoodPosition", hood.getPosition());
         telemetry.addData("teleopPower", teleopPower);
-        hood.setPosition(clamp(hoodPosition, 0.25, .95));
-
+        hood.setPosition(clamp(hoodPosition, RobotConstants.LauncherCalibration.hoodMin, RobotConstants.LauncherCalibration.hoodMax));
     }
-    //Sets turret position
+    //Sets turret
+
     public double setTurretPosition(double targetPosition) {
+        double ticksPerDegree = 1.068;
+        double currentAngle = turret1.getCurrentPosition()/ticksPerDegree;
+        double outputAngle = targetPosition*ticksPerDegree;
+        turret1.setTargetPosition(Math.toIntExact(Math.round(outputAngle)));
+        return currentAngle;
+    }
+    public double oldSetTurretPosition(double targetPosition) {
         double currentAngle = ((turretFB.getVoltage() / 3.3) * 360.0);
-        double turretTargetAngle = targetPosition+PARAMS.turretZeroOffset;
+        double turretTargetAngle = targetPosition + PARAMS.turretZeroOffset;
         double power;
-        if (lastTurretPosition-currentAngle >=280){
+        if (lastTurretPosition - currentAngle >= 280) {
             totalTurretRotations += 1;
-        }else if(lastTurretPosition - currentAngle <= -280) {
-            totalTurretRotations -=1;
+        } else if (lastTurretPosition - currentAngle <= -280) {
+            totalTurretRotations -= 1;
         }
-        totalTurretRotation = (currentAngle + totalTurretRotations*360)/4.167;
+        totalTurretRotation = (currentAngle + totalTurretRotations * 360) / 4.167;
 
-        power = -pid.turretPID(PARAMS.turretP, PARAMS.turretI, PARAMS.turretD, turretTargetAngle, totalTurretRotation);
+        // Use dedicated turretPID instance (not general pid)
+        power = -turretPID.turretPID(PARAMS.turretP, PARAMS.turretI, PARAMS.turretD, turretTargetAngle, totalTurretRotation);
 
-
-        //turret1.setPower(clamp(power, -1, 1));
-        turret1.setPower(power);
+        turret1.setPower(clamp(power, -1, 1));
         lastTurretPosition = currentAngle;
 
         telemetry.addData("turretServoPower", turret1.getPower());
         telemetry.addData("Turret Target", turretTargetAngle);
-        telemetry.addData("Turret Current", currentAngle);
-      // telemetry.addData("Turret Current Adjusted", currentAngle)
-        telemetry.addData("Turret Total", totalTurretRotation);
-        telemetry.addData("Turret Target Adjusted", turretTargetAngle + 360*totalRotations);
+        telemetry.addData("Turret Current", totalTurretRotation);
         telemetry.addData("Turret Power", power);
         telemetry.addData("Turret Rotations", totalTurretRotations);
         return totalTurretRotation;
@@ -638,88 +623,68 @@ public class robot extends LinearOpMode {
     }
     public void indexLoadManagement() {
         boolean loaded = artifacts.get(0) + artifacts.get(1) + artifacts.get(2) > 0;
-        if (loaded) {
-            PARAMS.indexerP = 0.000000001;
-            PARAMS.indexerI = 0.00000000000000001;
-            PARAMS.indexerD = 0.00000003;
-        } else {
-            PARAMS.indexerP = 0.000000001;
-            PARAMS.indexerI = 0.00000000000000001;
-            PARAMS.indexerD = 0.00000004;
-        }
+        PARAMS.indexerP = RobotConstants.IndexerPID.kP;
+        PARAMS.indexerI = RobotConstants.IndexerPID.kI;
+        PARAMS.indexerD = loaded ? RobotConstants.IndexerPID.kD_loaded : RobotConstants.IndexerPID.kD_unloaded;
     }
     public void indexer(int position) {
         if (position < lastIndex) {
             rotationTicker += 1;
         }
-        switch (position){
-            //number refers to which arm is where
-            //eg. "1 at launch" means that arm 1 is at the launch and slot 1 is at the intake
-
-            case 1:
-                //3 at launch
-                //setIndexPosition(0.167);
-                pid.indexReset();
-                setIndexPosition(0.21);
-
-                break;
-            case 2:
-                //2 at intake
-                pid.indexReset();
-                setIndexPosition(0.35);
-                break;
-
-            case 3:
-                pid.indexReset();
-                setIndexPosition(0.60);
-                break;
-            case 4:
-                //3 at intake
-                pid.indexReset();
-                setIndexPosition(0.69);
-                break;
-            case 5:
-                //2 at launch
-                //setIndexPosition(0.925);
-                pid.indexReset();
-                setIndexPosition(1.0);
-                break;
-
+        pid.indexReset();
+        switch (position) {
+            case 1: setIndexPosition(RobotConstants.IndexPositions.pos1); break;
+            case 2: setIndexPosition(RobotConstants.IndexPositions.pos2); break;
+            case 3: setIndexPosition(RobotConstants.IndexPositions.pos3); break;
+            case 4: setIndexPosition(RobotConstants.IndexPositions.pos4); break;
+            case 5: setIndexPosition(RobotConstants.IndexPositions.pos5); break;
             case 0:
-                //1 at intake
-                pid.indexReset();
-                setIndexPosition(0.0);
-                break;
-            default:
-                //1 at intake
-                pid.indexReset();
-                setIndexPosition(0.0);
+            default: setIndexPosition(RobotConstants.IndexPositions.pos0); break;
         }
         lastIndex = position;
     }
-    public class turretTrack implements Action {
-       public boolean redAlliance;
-        public turretTrack(boolean redAlliance){
+    // Computes turret angle to track the goal, updates goal heading/distance
+    public void updateTurretTracking(boolean redAlliance) {
+        turretPID.turretReset();
+        drive.localizer.update();
+        double locX = drive.localizer.getPose().position.x;
+        double locY = drive.localizer.getPose().position.y;
+        double robotHeading = drive.localizer.getPose().heading.toDouble();
+
+        double goalX = redAlliance ? redGoalX : blueGoalX;
+        double goalY = redAlliance ? redGoalY : blueGoalY;
+
+        // Field-frame angle from robot to goal (radians)
+        double fieldAngle = Math.atan2(goalY - locY, goalX - locX);
+
+        // Robot-relative turret angle (degrees)
+        targetTurretAngle = Math.toDegrees(
+                Math.atan2(Math.sin(fieldAngle - robotHeading), Math.cos(fieldAngle - robotHeading))
+        );
+
+        // Update cached distance for hood/velocity calculations
+        double dist = Math.hypot(goalX - locX, goalY - locY);
+        if (redAlliance) {
+            redGoalHeading = Math.toDegrees(fieldAngle);
+            redGoalDistance = dist;
+        } else {
+            blueGoalHeading = Math.toDegrees(fieldAngle);
+            blueGoalDistance = dist;
+        }
+
+        telemetry.addData("turretTrackAngle", targetTurretAngle);
+        telemetry.addData("goalDistance", dist);
+    }
+
+    // Action wrapper for auto sequences
+    public class turretTrackAction implements Action {
+        public boolean redAlliance;
+        public turretTrackAction(boolean redAlliance) {
             this.redAlliance = redAlliance;
         }
         @Override
         public boolean run(@NonNull TelemetryPacket telemetryPacket) {
-            if (redAlliance) {
-                pid.turretReset();
-                drive.localizer.update();
-                targetTurretAngle = Math.toDegrees(Math.atan2(Math.sin(Math.toRadians(redGoalHeading)-drive.localizer.getPose().heading.toDouble()), Math.cos(Math.toRadians(redGoalHeading)-drive.localizer.getPose().heading.toDouble())));
-               // setTurretPosition(PARAMS.turretAngle);
-                telemetry.addData("toRedGoal", targetTurretAngle);
-            } else {
-                pid.turretReset();
-                drive.localizer.update();
-                targetTurretAngle = Math.toDegrees(Math.atan2(Math.sin(Math.toRadians(blueGoalHeading)-drive.localizer.getPose().heading.toDouble()), Math.cos(Math.toRadians(blueGoalHeading)-drive.localizer.getPose().heading.toDouble())));
-
-                // setTurretPosition(PARAMS.turretAngle);
-                telemetry.addData("toBlueGoal", targetTurretAngle);
-
-            }
-           // telemetry.addData("turretPower", power);
+            updateTurretTracking(redAlliance);
             return false;
         }
     }
@@ -799,10 +764,12 @@ public class robot extends LinearOpMode {
         double purple2 = (color2.red()+color2.blue())/2;
         double green2 = color2.green();
 
-        boolean isPurp1 = purple1 >175 && purple1 - green1 > 100;
-        boolean isGreen1 = green1 > 175 && green1 - purple1 > 100;
-        boolean isPurp2 = purple2 >175 && purple2 - green2 > 100;
-        boolean isGreen2 = green2 > 175 && green2 - purple2 > 100;
+        double minIntensity = RobotConstants.ColorThresholds.minIntensity;
+        double minDiff = RobotConstants.ColorThresholds.minDifference;
+        boolean isPurp1 = purple1 > minIntensity && purple1 - green1 > minDiff;
+        boolean isGreen1 = green1 > minIntensity && green1 - purple1 > minDiff;
+        boolean isPurp2 = purple2 > minIntensity && purple2 - green2 > minDiff;
+        boolean isGreen2 = green2 > minIntensity && green2 - purple2 > minDiff;
         if (isGreen1||isGreen2) {
             intakeSlotContents = 2;
         } else if (isPurp1|isPurp2) {
@@ -880,24 +847,19 @@ public class robot extends LinearOpMode {
 
 
                 if (!auto) {
+                    // Auto-track by default, manual fine-adjust with right_bumper
                     if (gamepad1.right_bumper) {
-                        new turretTrack(isRedAlliance).run(new TelemetryPacket());
+                        targetTurretAngle -= gamepad1.right_stick_x * 5;
+                    } else {
+                        updateTurretTracking(isRedAlliance);
                     }
                     launcherAngleVelocity();
                     power = teleopPower;
                     setLaunchRPM(power);
-                    targetTurretAngle -= gamepad1.right_stick_x*5;
                     setTurretPosition(targetTurretAngle);
                     drive.localizer.update();
                     robot.PARAMS.localizerX = drive.localizer.getPose().position.x;
                     robot.PARAMS.localizerY = drive.localizer.getPose().position.y;
-                    blueGoalHeading = Math.toDegrees(Math.atan2(blueGoalY -PARAMS.localizerY, blueGoalX -PARAMS.localizerX));
-                    blueGoalDistance = Math.hypot(blueGoalX -PARAMS.localizerX, blueGoalY -PARAMS.localizerY);
-                    redGoalHeading = Math.toDegrees(Math.atan2(redGoalY -PARAMS.localizerY, redGoalX -PARAMS.localizerX));
-                    redGoalDistance = Math.hypot(redGoalX -PARAMS.localizerX, redGoalY -PARAMS.localizerY);
-
-
-
                 }
                 boolean toSpeed = abs(abs(power) - abs(getLaunchRPM())) <100;
 
