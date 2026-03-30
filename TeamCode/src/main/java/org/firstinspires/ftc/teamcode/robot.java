@@ -32,12 +32,13 @@ package org.firstinspires.ftc.teamcode;
 
 import static androidx.core.math.MathUtils.clamp;
 import static java.lang.Math.abs;
+import static java.lang.Math.cos;
+import static java.lang.Math.sin;
 
 import androidx.annotation.NonNull;
 
 import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
 import com.acmerobotics.roadrunner.Action;
-//import com.qualcomm.ftcrobotcontroller.
 import com.acmerobotics.roadrunner.Pose2d;
 import com.acmerobotics.roadrunner.PoseVelocity2d;
 import com.acmerobotics.roadrunner.SequentialAction;
@@ -55,9 +56,11 @@ import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.IMU;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
 import org.firstinspires.ftc.teamcode.util.AprilTag;
 import org.firstinspires.ftc.teamcode.util.PID;
 import org.firstinspires.ftc.teamcode.subsystems.MecanumDrive;
@@ -67,6 +70,7 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagLibrary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
@@ -126,6 +130,11 @@ public class robot extends LinearOpMode {
     int rotationTicker = 0;
     int lastIndex = 0;
     boolean indexCC = true;
+
+    public double lastP = RobotConstants.TurretPID.kP;
+    public double lastI = RobotConstants.TurretPID.kI;
+    public double lastD = RobotConstants.TurretPID.kD;
+    public double lastF = RobotConstants.TurretPID.kF;
     // Runtime state (computed per-alliance, not tunable constants)
     public static class Params {
         public double beginPosX = RobotConstants.StartPositions.beginPosX;
@@ -253,8 +262,20 @@ public class robot extends LinearOpMode {
         //turret2.scaleRange(.25, 0.75);
        // indexer.scaleRange(0, 1);
         // turret1.getController().
+        turret1.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
+        turret1.setTargetPosition(0);
+        turret1.setDirection(DcMotorSimple.Direction.FORWARD);
         turret1.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        turret1.setPower(0);
+
+        
+        turret1.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
+        turret1.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
+        // In robot.java, inside runOpMode:
+        turret1.setPIDFCoefficients(DcMotorEx.RunMode.RUN_USING_ENCODER,
+                new PIDFCoefficients(RobotConstants.TurretPID.kP, RobotConstants.TurretPID.kI, RobotConstants.TurretPID.kD, RobotConstants.TurretPID.kF)
+        );
+        turret1.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
+        turret1.setPower(1.0); // Allow motor to move in RUN_TO_POSITION mode
 
         indexLightSignal1 = hardwareMap.get(Servo.class, "light1");
         indexLightSignal2 = hardwareMap.get(Servo.class, "light2");
@@ -320,24 +341,34 @@ public class robot extends LinearOpMode {
     }
 
     public double getTurretPosition() {
-        double currentAngle = ((turretFB.getVoltage() / 3.3) * 360.0);
-        if (lastTurretPosition - currentAngle >= 280) {
-            totalTurretRotations += 1;
-        } else if (lastTurretPosition - currentAngle <= -280) {
-            totalTurretRotations -= 1;
-        }
-        totalTurretRotation = (currentAngle + totalTurretRotations * 360) / 4.167;
-        lastTurretPosition = currentAngle;
-        return totalTurretRotation;
+        return turret1.getCurrentPosition()/1.068;
     }
 
     public boolean updatePoseFromLimeLight () {
         double turretPos = getTurretPosition();
         double turretTarget = targetTurretAngle + PARAMS.turretZeroOffset;
-        if (result != null && result.isValid() && abs(turretTarget - turretPos) < 3) {
+        Vector2d turretCenter;
+        Vector2d robotPos;
+        Pose2d robotFinalPose;
+        double LLX;
+        double LLY;
+        double LLYaw;
+        double turretRadius = RobotConstants.Misc.turretRadiusAtLimeLight;
+        double turretRobotCenterToCenter = RobotConstants.Misc.turretCenterToRobotCenter;
+        double turretAngleOnRobot = turret1.getCurrentPosition()/(RobotConstants.Misc.ticksPerDegree*RobotConstants.Misc.turretRatio);
+        if (result != null && result.isValid()/* && abs(turretTarget - turretPos) < 3*/) {
             limeLightBotpose = new Pose2d(new Vector2d(result.getBotpose().getPosition().x*conversionRatio, result.getBotpose().getPosition().y*conversionRatio), result.getBotpose().getOrientation().getYaw(AngleUnit.RADIANS));
-            drive.localizer.setPose(limeLightBotpose);
+            LLX = limeLightBotpose.position.x;
+            LLY = limeLightBotpose.position.y;
+            LLYaw = limeLightBotpose.heading.toDouble();
+            turretCenter = new Vector2d(LLX-(turretRadius*cos(LLYaw)), LLY-(turretRadius*sin(LLYaw)));
+            robotPos = new Vector2d(turretCenter.x + turretRobotCenterToCenter*cos(LLYaw-turretAngleOnRobot), turretCenter.y + turretRobotCenterToCenter*(LLYaw-turretAngleOnRobot));
+            robotFinalPose = new Pose2d(robotPos, LLYaw);
+            drive.localizer.setPose(robotFinalPose);
             indexLightSignal2.setPosition(1);
+            telemetry.addData("LL pose",limeLightBotpose);
+            telemetry.addData("TURRET Pose", turretCenter);
+            telemetry.addData("FINAL ROBOT Pose", robotFinalPose);
             return true;
         } else {
             return false;
@@ -379,10 +410,17 @@ public class robot extends LinearOpMode {
     //Sets turret
 
     public double setTurretPosition(double targetPosition) {
-        double ticksPerDegree = 1.068;
-        double currentAngle = turret1.getCurrentPosition()/ticksPerDegree;
-        double outputAngle = targetPosition*ticksPerDegree;
-        turret1.setTargetPosition(Math.toIntExact(Math.round(outputAngle)));
+        double ticksPerDegree = RobotConstants.Misc.ticksPerDegree;
+        double turretRatio = RobotConstants.Misc.turretRatio;
+        double currentAngle = turret1.getCurrentPosition()/(ticksPerDegree*turretRatio);
+        double outputAngle = targetPosition*ticksPerDegree*turretRatio;
+
+        turret1.setTargetPosition((int) Math.round(outputAngle));
+        telemetry.addData("Turret Current Position", currentAngle);
+        telemetry.addData("Turret Motor Power", turret1.getCurrent(CurrentUnit.AMPS));
+        telemetry.addData("Turret Target Output Position", outputAngle);
+        telemetry.addData("Turret Input Target Position", targetPosition);
+        telemetry.addData("Turret True Target Position", turret1.getTargetPosition());
         return currentAngle;
     }
     public double oldSetTurretPosition(double targetPosition) {
@@ -645,7 +683,7 @@ public class robot extends LinearOpMode {
     }
     // Computes turret angle to track the goal, updates goal heading/distance
     public void updateTurretTracking(boolean redAlliance) {
-        turretPID.turretReset();
+        //turretPID.turretReset();
         drive.localizer.update();
         double locX = drive.localizer.getPose().position.x;
         double locY = drive.localizer.getPose().position.y;

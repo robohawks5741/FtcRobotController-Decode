@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.acmerobotics.dashboard.config.Config;
+import com.acmerobotics.roadrunner.Vector2d;
 
 /**
  * All tunable robot constants in one place.
@@ -8,43 +9,49 @@ import com.acmerobotics.dashboard.config.Config;
  */
 @Config
 public class RobotConstants {
-
+    @Config
     public static class TurretPID {
-        public static double kP = 0.017;
-        public static double kI = 0.000000001;
-        public static double kD = 0.00000003;
+        public static double kP = 16.8;
+        public static double kI = 0.21;
+        public static double kD = 2.9;
         public static double zeroOffset = 8.5;  // degrees
         public static double gearRatio = 4.167;
-    }
+        public static double kF = 0.1;
 
+    }
+    @Config
     public static class IndexerPID {
         public static double kP = 0.000000001;
         public static double kI = 0.00000000000000001;
         public static double kD = 0.00000003;
         public static double kD_loaded = 0.00000003;
-        public static double kD_unloaded = 0.00000004;
+        public static double kD_unloaded = 0.00000002;
     }
-
+    @Config
     public static class LauncherPID {
         public static double kP = 22;
         public static double kI = 0.3;
         public static double kD = 0;
         public static double kF = 12;
     }
-
+    @Config
     public static class DriveControl {
         public static double kP = 0.01;
         public static double kI = 0.0000001;
         public static double kD = 0.4;
     }
-
+    @Config
     public static class FieldPositions {
         public static double redGoalX = -62;
         public static double redGoalY = 64;
         public static double blueGoalX = -62;
         public static double blueGoalY = -64;
-    }
 
+        public static Vector2d redGoalVector = new Vector2d(redGoalX, redGoalY);
+        public static Vector2d blueGoalVector = new Vector2d(blueGoalX, blueGoalY);
+
+    }
+    @Config
     public static class LauncherCalibration {
         public static double launcherM = 12.25;    // RPM per inch slope
         public static double launcherB = 1500;      // RPM minimum (y-intercept)
@@ -55,13 +62,13 @@ public class RobotConstants {
         public static int teleopPower = 4000;       // RPM for teleop
         public static int autoPower = 2150;          // RPM for auto
     }
-
+    @Config
     public static class StartPositions {
         public static double beginPosX = 65;
         public static double beginPosY = 11;
         public static double beginHeading = Math.toRadians(180);
     }
-
+    @Config
     public static class AutoPaths {
         public static double targetX = -53;
         public static double targetY = 25;
@@ -74,7 +81,7 @@ public class RobotConstants {
         public static double backToY = 25;
         public static double targetHeading = 110;
     }
-
+    @Config
     public static class IndexPositions {
         public static double pos0 = 0.0;
         public static double pos1 = 0.21;
@@ -83,15 +90,19 @@ public class RobotConstants {
         public static double pos4 = 0.69;
         public static double pos5 = 1.0;
     }
-
+    @Config
     public static class ColorThresholds {
         public static double minIntensity = 175;
         public static double minDifference = 100;
     }
-
+    @Config
     public static class Misc {
         public static double conversionRatio = 39.3701;  // meters to inches
         public static double llTurretRadius = 6;          // inches
         public static double ticksPerRev = 384.5;
+        public static double turretRadiusAtLimeLight = 5; //Inches
+        public static double turretCenterToRobotCenter = 2; //Inches
+        public static double ticksPerDegree = 1.068;
+        public static double turretRatio = 4;
     }
 }
