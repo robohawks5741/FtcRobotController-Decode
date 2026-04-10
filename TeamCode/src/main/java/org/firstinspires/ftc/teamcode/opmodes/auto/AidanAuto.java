@@ -1,11 +1,13 @@
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.opmodes.auto;
 
 import com.acmerobotics.roadrunner.PoseVelocity2d;
 import com.acmerobotics.roadrunner.Vector2d;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-@Autonomous(name = "Aidan Auto", group = "Robot")
+import org.firstinspires.ftc.teamcode.robot;
+
+@Autonomous(name = "Aidan Basic Auto", group = "Robot")
 public class AidanAuto extends robot {
     private static ElapsedTime timer = new ElapsedTime();
 
@@ -15,12 +17,15 @@ public class AidanAuto extends robot {
         waitForStart();
         timer.reset();
         while (opModeIsActive()) {
-            if (timer.time() > 1) return;
+            if (timer.time() >= 1.0) {
+                drive.setDrivePowers(new PoseVelocity2d(
+                        new Vector2d(0, 0),
+                        0
+                ));
+                break;
+            }
             drive.setDrivePowers(new PoseVelocity2d(
-                    new Vector2d(
-                            1,
-                            0
-                    ),
+                    new Vector2d(1, 0),
                     0
             ));
         }
