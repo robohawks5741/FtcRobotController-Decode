@@ -240,7 +240,7 @@ public class indexLaunchTest extends robot {
             }
             if (gamepad1.right_trigger > 0.0) {
 
-                setLaunchRPM(teleopPower-500);
+                setLaunchRPM(1500);
                //launcher.setVelocity(150, AngleUnit.DEGREES);
             }else {
                 setLaunchRPM(0);

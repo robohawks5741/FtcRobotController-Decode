@@ -1003,7 +1003,7 @@ public class robot extends LinearOpMode {
 
             boolean launchStarted = false;
             feedOn();
-            intake.setPower(0);
+            intake.setPower(1);
             indexer.setPower(0);
             if(auto){
                 setLaunchRPM(autoPower);
@@ -1061,8 +1061,6 @@ public class robot extends LinearOpMode {
                 telemetry.addData("color", color1.green());
                 telemetry.update();
                 if (!auto) {
-
-
                     drive.setDrivePowers(new PoseVelocity2d(
                             new Vector2d(
                                     -gamepad2.left_stick_y,
@@ -1088,12 +1086,8 @@ public class robot extends LinearOpMode {
                     }
                     //TELEOP
                     if (toSpeed && time.now(TimeUnit.SECONDS) - timer < startTime + normalRunTime) {
-                        intake.setPower(1);
                         indexer.setPower(teleopIndexPower);
 
-                    } else if (time.now(TimeUnit.SECONDS) - timer < startTime + normalRunTime && !toSpeed){
-                        indexer.setPower(0);
-                        intake.setPower(0);
                     } else if (time.now(TimeUnit.SECONDS) - timer > 10 && time.now(TimeUnit.SECONDS) - timer < 12) {
                         indexer.setPower(teleopIndexPower);
                     } else if (time.now(TimeUnit.SECONDS) - timer > startTime + normalRunTime || time.now(TimeUnit.SECONDS) - timer > 12) {
@@ -1105,6 +1099,8 @@ public class robot extends LinearOpMode {
                         indexer(index);
                         setLaunchRPM(0);
                         break;
+                    }else if (time.now(TimeUnit.SECONDS) - timer < startTime + normalRunTime && !toSpeed){
+                        //indexer.setPower(0);
                     }
                 }else{
                     //AUTO
