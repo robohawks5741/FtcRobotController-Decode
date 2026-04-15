@@ -1001,7 +1001,7 @@ public class robot extends LinearOpMode {
 
             boolean launchStarted = false;
             feedOn();
-            intake.setPower(1);
+            intake.setPower(0);
             indexer.setPower(0);
             if(auto){
                 setLaunchRPM(autoPower);
@@ -1010,6 +1010,31 @@ public class robot extends LinearOpMode {
             while (opModeIsActive()) {
 
 
+                if (!auto) {
+
+                }
+                boolean toSpeed = abs(abs(power) - abs(getLaunchRPM())) < 100;
+
+               // colorLogger();
+                if(toSpeed&&!launchStarted) {
+                    startTime=time.now(TimeUnit.SECONDS)-timer;
+                    launchStarted = true;
+                }
+
+                telemetry.addData("launchCycle Running", "");
+                telemetry.addData("isValid", result.isValid());
+                //telemetry.addData("unadjusted RPM", launcher.getVelocity(AngleUnit.DEGREES)/6);
+                telemetry.addData("time", time.now(TimeUnit.SECONDS)-timer);
+                telemetry.addData("startTime", startTime);
+                telemetry.addData("toSpeed:", toSpeed);
+                telemetry.addData("Is Launching:", launchStarted);
+                telemetry.addData("TARGET LAUNCH RPM", power);
+                //telemetry.addData("LAUNCH RPM", launcher.getVelocity(AngleUnit.DEGREES));
+                telemetry.addData("LAUNCH RPM ADJ", launcher.getVelocity(AngleUnit.DEGREES) * 19.1);
+                telemetry.addData("artifacts", artifacts);
+                telemetry.addData("index", index);
+                telemetry.addData("color", color1.green());
+                telemetry.update();
                 if (!auto) {
                     drive.localizer.setPose(updatePoseFromLimeLight());
                     // Auto-track by default, manual fine-adjust with right_bumper
@@ -1035,30 +1060,7 @@ public class robot extends LinearOpMode {
                     drive.localizer.update();
                     robot.PARAMS.localizerX = drive.localizer.getPose().position.x;
                     robot.PARAMS.localizerY = drive.localizer.getPose().position.y;
-                }
-                boolean toSpeed = abs(abs(power) - abs(getLaunchRPM())) < 100;
 
-               // colorLogger();
-                if(toSpeed&&!launchStarted) {
-                    startTime=time.now(TimeUnit.SECONDS)-timer;
-                    launchStarted = true;
-                }
-
-                telemetry.addData("launchCycle Running", "");
-                telemetry.addData("isValid", result.isValid());
-                //telemetry.addData("unadjusted RPM", launcher.getVelocity(AngleUnit.DEGREES)/6);
-                telemetry.addData("time", time.now(TimeUnit.SECONDS)-timer);
-                telemetry.addData("startTime", startTime);
-                telemetry.addData("toSpeed:", toSpeed);
-                telemetry.addData("Is Launching:", launchStarted);
-                telemetry.addData("TARGET LAUNCH RPM", power);
-                //telemetry.addData("LAUNCH RPM", launcher.getVelocity(AngleUnit.DEGREES));
-                telemetry.addData("LAUNCH RPM ADJ", launcher.getVelocity(AngleUnit.DEGREES) * 19.1);
-                telemetry.addData("artifacts", artifacts);
-                telemetry.addData("index", index);
-                telemetry.addData("color", color1.green());
-                telemetry.update();
-                if (!auto) {
                     drive.setDrivePowers(new PoseVelocity2d(
                             new Vector2d(
                                     -gamepad2.left_stick_y,
@@ -1084,6 +1086,7 @@ public class robot extends LinearOpMode {
                     }
                     //TELEOP
                     if (toSpeed && time.now(TimeUnit.SECONDS) - timer < startTime + normalRunTime) {
+                        intake.setPower(1);
                         indexer.setPower(teleopIndexPower);
 
                     } else if (time.now(TimeUnit.SECONDS) - timer > 10 && time.now(TimeUnit.SECONDS) - timer < 12) {
@@ -1099,6 +1102,7 @@ public class robot extends LinearOpMode {
                         break;
                     }else if (time.now(TimeUnit.SECONDS) - timer < startTime + normalRunTime && !toSpeed){
                         indexer.setPower(0);
+                        intake.setPower(0);
                     }
                 }else{
                     //AUTO
