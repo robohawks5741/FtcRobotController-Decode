@@ -29,8 +29,7 @@ public class RobotConstants {
         public static double kI = 0.00000000000000001;
         public static double kD = 0.00000003;
         public static double kD_loaded = 0.00000003;
-        public static double kD_unloaded = 0.00000002;
-    }
+        public static double kD_unloaded = 0.000000025;}
     @Config
     public static class LauncherPID {
         public static double kP = 22;
@@ -57,8 +56,9 @@ public class RobotConstants {
     }
     @Config
     public static class LauncherCalibration {
-        public static double launcherM = 20;    // RPM per inch slope
-        public static double launcherB = 950;      // RPM minimum (y-intercept)
+        public static double launcherA = 20;    // RPM per inch slope
+        public static double launcherB = 40;//X translation (for math)
+        public static double launcherC = 950; // RPM minimum (y-intercept)
         public static double hoodM = 0.7 / 145.0;  // hood position per inch slope
         public static double hoodB = 0.25;          // hood minimum position
         public static double hoodMin = 0.25;

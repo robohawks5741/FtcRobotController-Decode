@@ -39,6 +39,7 @@ import static java.lang.Math.sin;
 
 import androidx.annotation.NonNull;
 
+import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
 import com.acmerobotics.roadrunner.Action;
 import com.acmerobotics.roadrunner.ParallelAction;
@@ -65,6 +66,7 @@ import com.qualcomm.robotcore.hardware.IMU;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
 import org.firstinspires.ftc.teamcode.util.AprilTag;
+import org.firstinspires.ftc.teamcode.util.Drawing;
 import org.firstinspires.ftc.teamcode.util.PID;
 import org.firstinspires.ftc.teamcode.subsystems.MecanumDrive;
 import org.firstinspires.ftc.teamcode.subsystems.PinpointLocalizer;
@@ -498,7 +500,7 @@ public class robot extends LinearOpMode {
 
         hoodPosition = (RobotConstants.LauncherCalibration.hoodM * tagDistance) + RobotConstants.LauncherCalibration.hoodB;
         teleopPower = Math.toIntExact(Math.round(
-                (RobotConstants.LauncherCalibration.launcherM * tagDistance) + RobotConstants.LauncherCalibration.launcherB));
+                (RobotConstants.LauncherCalibration.launcherA * Math.pow(tagDistance + RobotConstants.LauncherCalibration.launcherB, 2)) + RobotConstants.LauncherCalibration.launcherC));
 
         telemetry.addData("tagDistance", tagDistance);
         telemetry.addData("hoodPosition", hoodPosition);
@@ -1011,31 +1013,6 @@ public class robot extends LinearOpMode {
 
 
                 if (!auto) {
-
-                }
-                boolean toSpeed = abs(abs(power) - abs(getLaunchRPM())) < 100;
-
-               // colorLogger();
-                if(toSpeed&&!launchStarted) {
-                    startTime=time.now(TimeUnit.SECONDS)-timer;
-                    launchStarted = true;
-                }
-
-                telemetry.addData("launchCycle Running", "");
-                telemetry.addData("isValid", result.isValid());
-                //telemetry.addData("unadjusted RPM", launcher.getVelocity(AngleUnit.DEGREES)/6);
-                telemetry.addData("time", time.now(TimeUnit.SECONDS)-timer);
-                telemetry.addData("startTime", startTime);
-                telemetry.addData("toSpeed:", toSpeed);
-                telemetry.addData("Is Launching:", launchStarted);
-                telemetry.addData("TARGET LAUNCH RPM", power);
-                //telemetry.addData("LAUNCH RPM", launcher.getVelocity(AngleUnit.DEGREES));
-                telemetry.addData("LAUNCH RPM ADJ", launcher.getVelocity(AngleUnit.DEGREES) * 19.1);
-                telemetry.addData("artifacts", artifacts);
-                telemetry.addData("index", index);
-                telemetry.addData("color", color1.green());
-                telemetry.update();
-                if (!auto) {
                     drive.localizer.setPose(updatePoseFromLimeLight());
                     // Auto-track by default, manual fine-adjust with right_bumper
                     if (gamepad1.right_bumper) {
@@ -1060,6 +1037,31 @@ public class robot extends LinearOpMode {
                     drive.localizer.update();
                     robot.PARAMS.localizerX = drive.localizer.getPose().position.x;
                     robot.PARAMS.localizerY = drive.localizer.getPose().position.y;
+                }
+                boolean toSpeed = abs(abs(power) - abs(getLaunchRPM())) < 100;
+
+               // colorLogger();
+                if(toSpeed&&!launchStarted) {
+                    startTime=time.now(TimeUnit.SECONDS)-timer;
+                    launchStarted = true;
+                }
+
+                telemetry.addData("launchCycle Running", "");
+                telemetry.addData("isValid", result.isValid());
+                //telemetry.addData("unadjusted RPM", launcher.getVelocity(AngleUnit.DEGREES)/6);
+                telemetry.addData("time", time.now(TimeUnit.SECONDS)-timer);
+                telemetry.addData("startTime", startTime);
+                telemetry.addData("toSpeed:", toSpeed);
+                telemetry.addData("Is Launching:", launchStarted);
+                telemetry.addData("TARGET LAUNCH RPM", power);
+                //telemetry.addData("LAUNCH RPM", launcher.getVelocity(AngleUnit.DEGREES));
+                telemetry.addData("LAUNCH RPM ADJ", launcher.getVelocity(AngleUnit.DEGREES) * 19.1);
+                telemetry.addData("artifacts", artifacts);
+                telemetry.addData("index", index);
+                telemetry.addData("color", color1.green());
+                telemetry.update();
+                if (!auto) {
+
 
                     drive.setDrivePowers(new PoseVelocity2d(
                             new Vector2d(
@@ -1089,6 +1091,9 @@ public class robot extends LinearOpMode {
                         intake.setPower(1);
                         indexer.setPower(teleopIndexPower);
 
+                    } else if (time.now(TimeUnit.SECONDS) - timer < startTime + normalRunTime && !toSpeed){
+                        indexer.setPower(0);
+                        intake.setPower(0);
                     } else if (time.now(TimeUnit.SECONDS) - timer > 10 && time.now(TimeUnit.SECONDS) - timer < 12) {
                         indexer.setPower(teleopIndexPower);
                     } else if (time.now(TimeUnit.SECONDS) - timer > startTime + normalRunTime || time.now(TimeUnit.SECONDS) - timer > 12) {
@@ -1100,9 +1105,6 @@ public class robot extends LinearOpMode {
                         indexer(index);
                         setLaunchRPM(0);
                         break;
-                    }else if (time.now(TimeUnit.SECONDS) - timer < startTime + normalRunTime && !toSpeed){
-                        indexer.setPower(0);
-                        intake.setPower(0);
                     }
                 }else{
                     //AUTO
@@ -1117,7 +1119,15 @@ public class robot extends LinearOpMode {
                         break;
                     }
                 }
-
+                TelemetryPacket packet = new TelemetryPacket();
+                packet.fieldOverlay().setStroke("#3F51B5");
+                packet.put("To speed:", toSpeed);
+                packet.put("launchRPM", getLaunchRPM());
+                packet.put("time", time.now(TimeUnit.SECONDS) - timer);
+                packet.put("Running w/ index and intake:", toSpeed && time.now(TimeUnit.SECONDS) - timer < startTime + normalRunTime);
+                packet.put("Running w/ index and intake:", !toSpeed && time.now(TimeUnit.SECONDS) - timer < startTime + normalRunTime);
+                Drawing.drawRobot(packet.fieldOverlay(), drive.localizer.getPose());
+                FtcDashboard.getInstance().sendTelemetryPacket(packet);
 
             }
             return false;
