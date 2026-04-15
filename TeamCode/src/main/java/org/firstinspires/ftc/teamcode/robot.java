@@ -31,6 +31,8 @@ package org.firstinspires.ftc.teamcode;
 
 
 import static androidx.core.math.MathUtils.clamp;
+import static org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit.AMPS;
+import static java.lang.Math.PI;
 import static java.lang.Math.abs;
 import static java.lang.Math.cos;
 import static java.lang.Math.sin;
@@ -39,6 +41,7 @@ import androidx.annotation.NonNull;
 
 import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
 import com.acmerobotics.roadrunner.Action;
+import com.acmerobotics.roadrunner.ParallelAction;
 import com.acmerobotics.roadrunner.Pose2d;
 import com.acmerobotics.roadrunner.PoseVelocity2d;
 import com.acmerobotics.roadrunner.SequentialAction;
@@ -135,6 +138,9 @@ public class robot extends LinearOpMode {
     public double lastI = RobotConstants.TurretPID.kI;
     public double lastD = RobotConstants.TurretPID.kD;
     public double lastF = RobotConstants.TurretPID.kF;
+
+    public boolean isHeadingConfirmed = false;
+    public boolean isPoseUpdatedFromStart = false;
     // Runtime state (computed per-alliance, not tunable constants)
     public static class Params {
         public double beginPosX = RobotConstants.StartPositions.beginPosX;
@@ -144,6 +150,8 @@ public class robot extends LinearOpMode {
         public double beginHeading = RobotConstants.StartPositions.beginHeading;
         public double targetX = RobotConstants.AutoPaths.targetX;
         public double targetY = RobotConstants.AutoPaths.targetY;
+        public double parkX = RobotConstants.AutoPaths.parkX;
+        public double parkY = RobotConstants.AutoPaths.parkY;
         public double row1X = RobotConstants.AutoPaths.row1X;
         public double row1Y = RobotConstants.AutoPaths.row1Y;
         public double row2X = RobotConstants.AutoPaths.row2X;
@@ -203,6 +211,12 @@ public class robot extends LinearOpMode {
     protected double blueGoalY = RobotConstants.FieldPositions.blueGoalY;
     protected double blueGoalHeading = 0;
     protected double blueGoalDistance = 0;
+    double lastX = 0;
+    double lastY = 0;
+    double lastHeading = 0;
+    int ticksSinceUpdate = 100;
+    int ticksSinceHeadingUpdate = 100;
+    //double lastTheta = 0;
 
     protected List<Integer> artifacts;
     @Override
@@ -212,19 +226,21 @@ public class robot extends LinearOpMode {
             modifier = 1;
         }else {modifier = -1;}
         //public double beginPosX = 65;
-        PARAMS.beginPosY = 11*modifier;
+        PARAMS.beginPosY *= modifier;
        // public double localizerX = beginPosX;
         //public double localizerY = beginPosY;
         PARAMS.beginHeading = Math.toRadians(180)*modifier;
         //public double targetX = -53;
-        PARAMS.targetY = 25*modifier;
+        PARAMS.targetY *= modifier;
+
+        PARAMS.parkY *= modifier;
         //public double row1X = 34.5;
-        PARAMS.row1Y = 68*modifier;
+        PARAMS.row1Y *= modifier;
         //row2X = 10;
-        PARAMS.row2Y = 69*modifier;
+        PARAMS.row2Y *= modifier;
        // public double row3X = -13;
-        PARAMS.row3Y = 62*modifier;
-        PARAMS.backToY = 25*modifier;
+        PARAMS.row3Y *= modifier;
+        PARAMS.backToY *= modifier;
         PARAMS.row1CheckY = PARAMS.row1Y - (1*modifier);
         PARAMS.row2CheckY = PARAMS.row2Y - (1*modifier);
         PARAMS.row3CheckY = PARAMS.row3Y - (1*modifier);
@@ -267,7 +283,7 @@ public class robot extends LinearOpMode {
         turret1.setDirection(DcMotorSimple.Direction.FORWARD);
         turret1.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
-        
+
         turret1.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
         turret1.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
         // In robot.java, inside runOpMode:
@@ -318,6 +334,7 @@ public class robot extends LinearOpMode {
         double startTheta = 0;
         //PinpointLocalizer.setPose(PARAMS.beginPos);
         imu.initialize(new IMU.Parameters(orientationOnRobot));
+        limelight.pipelineSwitch(0);
         limelight.start();
         if (result != null && result.isValid()) {
            // beginPos = new Pose2d(new Vector2d(result.getBotpose().getPosition().x*39.3701, result.getBotpose().getPosition().y*39.3701), Math.toRadians(result.getBotpose().getOrientation().getYaw()));
@@ -327,6 +344,9 @@ public class robot extends LinearOpMode {
         telemetry.update();
         //aprilTag = new AprilTag("Webcam 1", hardwareMap);
         waitForStart();
+        turret1.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
+        turret1.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
+        turret1.setPower(1.0); // Allow motor to move in RUN_TO_POSITION mode
         drive = new MecanumDrive(hardwareMap, beginPos);
         drive.localizer.update();
         blueGoalHeading = Math.atan2(blueGoalY -PARAMS.localizerY, blueGoalX -PARAMS.localizerX);
@@ -341,38 +361,117 @@ public class robot extends LinearOpMode {
     }
 
     public double getTurretPosition() {
-        return turret1.getCurrentPosition()/1.068;
+        double ticksPerDegree = RobotConstants.Misc.ticksPerDegree;
+        double turretRatio = RobotConstants.Misc.turretRatio;
+        return turret1.getCurrentPosition()/(ticksPerDegree*turretRatio) ;
+    }
+    public double getTargetTurretPosition() {
+        double ticksPerDegree = RobotConstants.Misc.ticksPerDegree;
+        double turretRatio = RobotConstants.Misc.turretRatio;
+        return turret1.getTargetPosition()/(ticksPerDegree*turretRatio) ;
     }
 
-    public boolean updatePoseFromLimeLight () {
-        double turretPos = getTurretPosition();
-        double turretTarget = targetTurretAngle + PARAMS.turretZeroOffset;
-        Vector2d turretCenter;
-        Vector2d robotPos;
-        Pose2d robotFinalPose;
-        double LLX;
-        double LLY;
-        double LLYaw;
-        double turretRadius = RobotConstants.Misc.turretRadiusAtLimeLight;
-        double turretRobotCenterToCenter = RobotConstants.Misc.turretCenterToRobotCenter;
-        double turretAngleOnRobot = turret1.getCurrentPosition()/(RobotConstants.Misc.ticksPerDegree*RobotConstants.Misc.turretRatio);
-        if (result != null && result.isValid()/* && abs(turretTarget - turretPos) < 3*/) {
-            limeLightBotpose = new Pose2d(new Vector2d(result.getBotpose().getPosition().x*conversionRatio, result.getBotpose().getPosition().y*conversionRatio), result.getBotpose().getOrientation().getYaw(AngleUnit.RADIANS));
-            LLX = limeLightBotpose.position.x;
-            LLY = limeLightBotpose.position.y;
-            LLYaw = limeLightBotpose.heading.toDouble();
-            turretCenter = new Vector2d(LLX-(turretRadius*cos(LLYaw)), LLY-(turretRadius*sin(LLYaw)));
-            robotPos = new Vector2d(turretCenter.x + turretRobotCenterToCenter*cos(LLYaw-turretAngleOnRobot), turretCenter.y + turretRobotCenterToCenter*(LLYaw-turretAngleOnRobot));
-            robotFinalPose = new Pose2d(robotPos, LLYaw);
-            drive.localizer.setPose(robotFinalPose);
-            indexLightSignal2.setPosition(1);
-            telemetry.addData("LL pose",limeLightBotpose);
-            telemetry.addData("TURRET Pose", turretCenter);
-            telemetry.addData("FINAL ROBOT Pose", robotFinalPose);
-            return true;
-        } else {
-            return false;
+    public Pose2d updatePoseFromLimeLight() {
+        // 1. Quick check for validity before doing any heavy math
+        result = limelight.getLatestResult();
+        drive.localizer.update();
+
+        // Check if result is valid and turret is stable (to avoid motion blur/latency issues)
+        if (result == null || !result.isValid() || Math.abs(getTurretPosition() - getTargetTurretPosition()) > 10 || result.getTa() < 0.5 || abs(drive.leftFront.getVelocity(AngleUnit.DEGREES)) > 0.1|| abs(drive.leftBack.getVelocity(AngleUnit.DEGREES)) > 0.1) {
+            drive.localizer.update();
+            ticksSinceHeadingUpdate++;
+            //ticksSinceUpdate++;
+            return drive.localizer.getPose();
         }
+
+        // 2. Fetch necessary hardware states
+        double currentHeading = drive.localizer.getPose().heading.toDouble();
+        double turretAngleTicks = turret1.getCurrentPosition();
+        double turretAngleRad = Math.toRadians(getTurretPosition());
+        double limelightGlobalAngle;
+        Pose2d finalRobotPose;
+        Pose2d rawLlPose = new Pose2d(
+                result.getBotpose().getPosition().x * conversionRatio,
+                result.getBotpose().getPosition().y * conversionRatio,
+                AngleUnit.normalizeRadians(result.getBotpose().getOrientation().getYaw(AngleUnit.RADIANS))
+        );
+
+        double robotHeading = AngleUnit.normalizeRadians(rawLlPose.heading.toDouble() - turretAngleRad);
+
+
+        limeLightBotpose = rawLlPose;
+        // Update Limelight's internal orientation for better BotPose estimation
+       /* if (isHeadingConfirmed) {
+            limelightGlobalAngle = Math.toDegrees(currentHeading) + Math.toDegrees(turretAngleRad);
+           // limelight.updateRobotOrientation(limelightGlobalAngle);
+
+        } else if (ticksSinceUpdate > 50) {
+            isHeadingConfirmed = false;
+        }else {
+            isHeadingConfirmed = true;
+            return new Pose2d(new Vector2d(drive.localizer.getPose().position.x, drive.localizer.getPose().position.y),(robotHeading));
+
+        } */
+
+
+        // 3. Extract Raw Pose (Assuming Botpose is in meters, converting to inches)
+
+        // 4. Transform Limelight Pose to Robot Center Pose
+        // Concept: Move backwards from Limelight to Turret Center, then to Robot Center
+        double turretRadius = RobotConstants.Misc.turretRadiusAtLimeLight;
+        double turretToRobotDist = RobotConstants.Misc.turretCenterToRobotCenter;
+
+        // Calculate turret center by offseting from the LL pose heading
+        Vector2d turretCenter = new Vector2d(
+                rawLlPose.position.x - (turretRadius * Math.cos(rawLlPose.heading.toDouble())),
+                rawLlPose.position.y - (turretRadius * Math.sin(rawLlPose.heading.toDouble()))
+        );
+
+        // Calculate robot center based on where the turret is relative to the chassis
+        Vector2d robotPos = new Vector2d(
+                turretCenter.x + turretToRobotDist * Math.cos(robotHeading),
+                turretCenter.y + turretToRobotDist * Math.sin(robotHeading)
+        );
+
+        // 5. Apply the update
+        // We usually trust the Localizer (IMU) heading more than the Limelight heading
+        if (!isHeadingConfirmed||(ticksSinceHeadingUpdate > RobotConstants.Misc.tickUpdateHeadingMaxTicks && robotHeading != PARAMS.beginHeading)) {
+            finalRobotPose = new Pose2d(robotPos, robotHeading);
+            ticksSinceHeadingUpdate = 0;
+            isHeadingConfirmed = true;
+            isPoseUpdatedFromStart = true;
+        }else {
+            finalRobotPose = new Pose2d(robotPos, drive.localizer.getPose().heading.toDouble());
+            ticksSinceHeadingUpdate++;
+        }
+
+
+        // 4. Jump Protection: If the "new" pose is more than 12 inches away from the current
+        // localizer pose, ignore it unless we haven't seen a tag in a long time.
+        double distError = abs(Math.hypot(finalRobotPose.position.x - drive.localizer.getPose().position.x,
+                finalRobotPose.position.y - drive.localizer.getPose().position.y));
+
+        // Only accept the update if it's "sane" OR if we are forced to re-localize
+        if (distError > RobotConstants.Misc.distTolerance && ticksSinceUpdate < RobotConstants.Misc.tickUpdateMaxTicks && isPoseUpdatedFromStart) {
+            ticksSinceUpdate++;
+            return drive.localizer.getPose();
+        }
+
+        // 5. Apply the Update
+        ticksSinceUpdate = 0;
+
+        // 6. Feedback
+        indexLightSignal2.setPosition(1.0); // Visual indicator of lock
+
+        // Log data (optional: move to a separate telemetry method)
+        telemetry.addData("LL Valid", "TRUE");
+        telemetry.addData("LL Raw Pose", rawLlPose);
+        telemetry.addData("Final Calculated Pose", finalRobotPose);
+        lastX = finalRobotPose.position.x;
+        lastY = finalRobotPose.position.y;
+        lastHeading = finalRobotPose.heading.toDouble();
+        isPoseUpdatedFromStart = true;
+        return finalRobotPose;
     }
 
     // RETURNS INDEX OF BALL WITH SPECIFIED COLOR, OR -1 IF NOT FOUND
@@ -417,7 +516,7 @@ public class robot extends LinearOpMode {
 
         turret1.setTargetPosition((int) Math.round(outputAngle));
         telemetry.addData("Turret Current Position", currentAngle);
-        telemetry.addData("Turret Motor Power", turret1.getCurrent(CurrentUnit.AMPS));
+        telemetry.addData("Turret Motor Power", turret1.getCurrent(AMPS));
         telemetry.addData("Turret Target Output Position", outputAngle);
         telemetry.addData("Turret Input Target Position", targetPosition);
         telemetry.addData("Turret True Target Position", turret1.getTargetPosition());
@@ -514,7 +613,7 @@ public class robot extends LinearOpMode {
         double r = Math.hypot(right, forward);
 
         theta = AngleUnit.normalizeRadians(
-                theta - PinpointLocalizer.getPose().heading.toDouble() * Math.PI / 180
+                theta - PinpointLocalizer.getPose().heading.toDouble() * PI / 180
         );
 
         double newForward = r * Math.sin(theta);
@@ -635,8 +734,30 @@ public class robot extends LinearOpMode {
                 case 5:
                     Actions.runBlocking(new SleepAction(13));
                     break;
+                case 6:
+                    Actions.runBlocking(new ParallelAction(
+                            drive.actionBuilder(beginPos)
+                                    .strafeToLinearHeading(new Vector2d(PARAMS.parkX, PARAMS.parkY), Math.toRadians(PARAMS.targetHeading))
+                                    .build(),
+                            new driveInAction()
+                    ));
+                    break;
             }
             return false;
+        }
+    }
+
+    public class driveInAction implements Action {
+        @Override
+        public boolean run(@NonNull TelemetryPacket telemetryPacket) {
+            drive.setDrivePowers(new PoseVelocity2d(
+                    new Vector2d(
+                            -gamepad2.left_stick_y,
+                            -gamepad2.left_stick_x
+                    ),
+                    -gamepad2.right_stick_x
+            ));
+            return true;
         }
     }
 
@@ -696,6 +817,7 @@ public class robot extends LinearOpMode {
         double fieldAngle = Math.atan2(goalY - locY, goalX - locX);
 
         // Robot-relative turret angle (degrees)
+
         targetTurretAngle = Math.toDegrees(
                 Math.atan2(Math.sin(fieldAngle - robotHeading), Math.cos(fieldAngle - robotHeading))
         );
@@ -821,7 +943,7 @@ public class robot extends LinearOpMode {
 
         isLaunching = abs(launcher.getVelocity()) > 10;
         if (isLaunching || intake.getPower() >0.1 || intake.getPower() < -0.1) {
-            if (indexer.getPower() < 0.1) {
+            if (indexer.getPower() < 0.05) {
                 switch (index) {
                     case 1:
                         if (isLaunching) {
@@ -872,6 +994,10 @@ public class robot extends LinearOpMode {
             double startTime = 10;
             double longDelay;
             double shortDelay;
+            double normalRunTime = RobotConstants.LauncherCalibration.normalRunIndexTime;
+            double autoRunTime = RobotConstants.LauncherCalibration.autoRunIndexTime;
+            double teleopIndexPower = RobotConstants.LauncherCalibration.teleOpIndexPower;
+            double autoIndexPower = RobotConstants.LauncherCalibration.autoIndexPower;
 
             boolean launchStarted = false;
             feedOn();
@@ -885,13 +1011,24 @@ public class robot extends LinearOpMode {
 
 
                 if (!auto) {
+                    drive.localizer.setPose(updatePoseFromLimeLight());
                     // Auto-track by default, manual fine-adjust with right_bumper
                     if (gamepad1.right_bumper) {
                         targetTurretAngle -= gamepad1.right_stick_x * 5;
-                    } else {
+                    } else if (gamepad1.share || gamepad2.share) {
+                        targetTurretAngle = 0;
+                    }else {
                         updateTurretTracking(isRedAlliance);
                     }
-                    launcherAngleVelocity();
+                    if (gamepad1.left_bumper){
+                        hoodPosition += -gamepad1.left_stick_y/10;
+                        hood.setPosition(hoodPosition);
+                    } else {
+                        launcherAngleVelocity();
+                    }
+                    if (gamepad2.left_bumper){
+                        teleopPower = 5000;
+                    }
                     power = teleopPower;
                     setLaunchRPM(power);
                     setTurretPosition(targetTurretAngle);
@@ -899,22 +1036,14 @@ public class robot extends LinearOpMode {
                     robot.PARAMS.localizerX = drive.localizer.getPose().position.x;
                     robot.PARAMS.localizerY = drive.localizer.getPose().position.y;
                 }
-                boolean toSpeed = abs(abs(power) - abs(getLaunchRPM())) <100;
+                boolean toSpeed = abs(abs(power) - abs(getLaunchRPM())) < 100;
 
                // colorLogger();
                 if(toSpeed&&!launchStarted) {
                     startTime=time.now(TimeUnit.SECONDS)-timer;
                     launchStarted = true;
                 }
-                if (result.isValid() && 0==1) {
-                    limelight.updateRobotOrientation(drive.localizer.getPose().heading.toDouble());
-                    drive.localizer.setPose(new Pose2d(new Vector2d(result.getBotpose().getPosition().x/0.0254, result.getBotpose().getPosition().y/0.0254), result.getBotpose().getOrientation().getYaw()));
 
-                    telemetry.addData("x", drive.localizer.getPose().position.x/0.0254);
-                    telemetry.addData("y", drive.localizer.getPose().position.y/0.0254);
-                    telemetry.addData("heading", Math.toDegrees(drive.localizer.getPose().heading.toDouble()));
-                 //   beginPoseFound = true;
-                }
                 telemetry.addData("launchCycle Running", "");
                 telemetry.addData("isValid", result.isValid());
                 //telemetry.addData("unadjusted RPM", launcher.getVelocity(AngleUnit.DEGREES)/6);
@@ -950,35 +1079,39 @@ public class robot extends LinearOpMode {
                         //turret1.setPower(0);
                         //turret2.setPower(0);
                     }
-                    if (gamepad1.left_bumper) {
-                        //hood.setPosition(clamp(gamepad1.left_stick_y, 0.25, 0.95));
+                    if (gamepad2.right_bumper && gamepad2.triangle) {
+                        break;
                     }
-                }
-                //hood.setPosition(0.25);
+                    //TELEOP
+                    if (toSpeed && time.now(TimeUnit.SECONDS) - timer < startTime + normalRunTime) {
+                        indexer.setPower(teleopIndexPower);
 
-                if (toSpeed && time.now(TimeUnit.SECONDS) - timer < startTime+1.9) {
-                    if (auto) {
-                        indexer.setPower(1);
-                    }else {
-                        indexer.setPower(0.5);
-                    }
-                }else if (time.now(TimeUnit.SECONDS)-timer >10 && time.now(TimeUnit.SECONDS)-timer <12){
-                    if (auto) {
-                        indexer.setPower(1);
-                    }else {
-                        indexer.setPower(0.5);
-                    }
-                }else if (time.now(TimeUnit.SECONDS)-timer > startTime+1.9 || time.now(TimeUnit.SECONDS)-timer >12) {
-                    //indexer.setPower(0);
+                    } else if (time.now(TimeUnit.SECONDS) - timer > 10 && time.now(TimeUnit.SECONDS) - timer < 12) {
+                        indexer.setPower(teleopIndexPower);
+                    } else if (time.now(TimeUnit.SECONDS) - timer > startTime + normalRunTime || time.now(TimeUnit.SECONDS) - timer > 12) {
+                        //indexer.setPower(0);
 
-                    artifacts = Arrays.asList(0,0,0);
-                    feedOff();
-                    if(!auto){
+                        artifacts = Arrays.asList(0, 0, 0);
+                        feedOff();
                         index = PARAMS.indexCycleStart;
                         indexer(index);
                         setLaunchRPM(0);
+                        break;
+                    }else if (time.now(TimeUnit.SECONDS) - timer < startTime + normalRunTime && !toSpeed){
+                        indexer.setPower(0);
                     }
-                    break;
+                }else{
+                    //AUTO
+                    if (toSpeed && time.now(TimeUnit.SECONDS) - timer < startTime + autoRunTime) {
+                        indexer.setPower(autoIndexPower);
+                    } else if (time.now(TimeUnit.SECONDS) - timer > 10 && time.now(TimeUnit.SECONDS) - timer < 12) {
+                        indexer.setPower(autoIndexPower);
+                    } else if (time.now(TimeUnit.SECONDS) - timer > startTime + autoRunTime || time.now(TimeUnit.SECONDS) - timer > 12) {
+                        //indexer.setPower(0);
+                        artifacts = Arrays.asList(0, 0, 0);
+                        feedOff();
+                        break;
+                    }
                 }
 
 
