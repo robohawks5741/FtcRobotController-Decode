@@ -56,18 +56,18 @@ public class RobotConstants {
     }
     @Config
     public static class LauncherCalibration {
-        public static double launcherA = 20;    // RPM per inch slope
-        public static double launcherB = 40;//X translation (for math)
+        public static double launcherA = 0.09;    // RPM per inch slope
+        public static double launcherB = 44;//X translation (for math)
         public static double launcherC = 950; // RPM minimum (y-intercept)
         public static double hoodM = 0.7 / 145.0;  // hood position per inch slope
-        public static double hoodB = 0.25;          // hood minimum position
-        public static double hoodMin = 0.25;
+        public static double hoodB = 0.14;          // hood minimum position
+        public static double hoodMin = 0;
         public static double hoodMax = 0.95;
         public static int teleopPower = 4000;       // RPM for teleop
-        public static int autoPower = 2150;          // RPM for auto
+        public static int autoPower = 1200;          // RPM for auto
         public static double teleOpIndexPower = 0.3;
         public static double autoIndexPower = 1;
-        public static double normalRunIndexTime = 2.4;
+        public static double normalRunIndexTime = 4;
         public static double autoRunIndexTime = 1.9;
         public static double shortRunIndexTime = 0.7;
     }
@@ -79,18 +79,18 @@ public class RobotConstants {
     }
     @Config
     public static class AutoPaths {
-        public static double targetX = -53;
+        public static double targetX = -44;
         public static double targetY = 25;
         public static double row1X = 34.5;
-        public static double row1Y = 68;
-        public static double row2X = 10;
-        public static double row2Y = 69;
-        public static double row3X = -13;
-        public static double row3Y = 62;
+        public static double row1Y = 60;
+        public static double row2X = 18;
+        public static double row2Y = 64;
+        public static double row3X = -8;
+        public static double row3Y = 56;
         public static double backToY = 25;
         public static double targetHeading = 110;
-        public static double parkX = -24;
-        public static double parkY = 24;
+        public static double parkX = 38;
+        public static double parkY = -32;
     }
     @Config
     public static class IndexPositions {
@@ -113,7 +113,7 @@ public class RobotConstants {
         public static double ticksPerRev = 384.5;
         public static double turretRadiusAtLimeLight = 6.25; //Inches
         public static double turretCenterToRobotCenter = 3; //Inches
-        public static double ticksPerDegree = 1.068;
+        public static double ticksPerDegree = 1.0680555;
         public static double turretRatio = 4;
         public static double checkInterval = 0.2;
         public static double distTolerance = 20;

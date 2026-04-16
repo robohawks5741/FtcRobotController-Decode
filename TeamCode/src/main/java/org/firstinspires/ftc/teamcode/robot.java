@@ -500,7 +500,7 @@ public class robot extends LinearOpMode {
 
         hoodPosition = (RobotConstants.LauncherCalibration.hoodM * tagDistance) + RobotConstants.LauncherCalibration.hoodB;
         teleopPower = Math.toIntExact(Math.round(
-                (RobotConstants.LauncherCalibration.launcherA * Math.pow(tagDistance + RobotConstants.LauncherCalibration.launcherB, 2)) + RobotConstants.LauncherCalibration.launcherC));
+                (RobotConstants.LauncherCalibration.launcherA * Math.pow((tagDistance + RobotConstants.LauncherCalibration.launcherB), 2)) + RobotConstants.LauncherCalibration.launcherC));
 
         telemetry.addData("tagDistance", tagDistance);
         telemetry.addData("hoodPosition", hoodPosition);
@@ -699,7 +699,7 @@ public class robot extends LinearOpMode {
                                     .waitSeconds(0.2)
                                     .strafeToLinearHeading(new Vector2d(PARAMS.row2X, PARAMS.backToY), PARAMS.intakeHeading)
                                     //.splineToSplineHeading(new Pose2d(PARAMS.row2X+5, PARAMS.targetY + 5, Math.toRadians(180)), Math.toRadians(180))
-                                    .strafeToLinearHeading(new Vector2d((PARAMS.targetX + 6), PARAMS.targetY - (5* modifier)), Math.toRadians(PARAMS.targetHeading))
+                                    .strafeToLinearHeading(new Vector2d((PARAMS.targetX), PARAMS.targetY), Math.toRadians(PARAMS.targetHeading))
                                     //.splineToSplineHeading(new Pose2d(PARAMS.targetX, PARAMS.targetY, Math.toRadians(PARAMS.targetHeading)), Math.toRadians(175))
                                     .build(),
                             new autoIntakeOff()
@@ -720,7 +720,7 @@ public class robot extends LinearOpMode {
                                     .lineToY(PARAMS.row3Y)
                                   //  .waitSeconds(0.5)
                                   //  .splineToSplineHeading(new Pose2d(PARAMS.row3X, PARAMS.targetY + 5, Math.toRadians(90)), Math.toRadians(90))
-                                    .strafeToLinearHeading(new Vector2d((PARAMS.targetX + 4), (PARAMS.targetY - (4* modifier))), Math.toRadians(PARAMS.targetHeading))
+                                    .strafeToLinearHeading(new Vector2d((PARAMS.targetX), (PARAMS.targetY)), Math.toRadians(PARAMS.targetHeading))
                                    // .splineToSplineHeading(new Pose2d(PARAMS.targetX, PARAMS.targetY, Math.toRadians(PARAMS.targetHeading)), Math.toRadians(175))
                                     .build(),
                             new autoIntakeOff()
@@ -739,7 +739,7 @@ public class robot extends LinearOpMode {
                 case 6:
                     Actions.runBlocking(new ParallelAction(
                             drive.actionBuilder(beginPos)
-                                    .strafeToLinearHeading(new Vector2d(PARAMS.parkX, PARAMS.parkY), Math.toRadians(PARAMS.targetHeading))
+                                    .strafeToLinearHeading(new Vector2d(PARAMS.parkX, PARAMS.parkY), Math.toRadians(90))
                                     .build(),
                             new driveInAction()
                     ));
@@ -996,6 +996,7 @@ public class robot extends LinearOpMode {
             double startTime = 10;
             double longDelay;
             double shortDelay;
+            autoPower = RobotConstants.LauncherCalibration.autoPower;
             double normalRunTime = RobotConstants.LauncherCalibration.normalRunIndexTime;
             double autoRunTime = RobotConstants.LauncherCalibration.autoRunIndexTime;
             double teleopIndexPower = RobotConstants.LauncherCalibration.teleOpIndexPower;
@@ -1006,7 +1007,8 @@ public class robot extends LinearOpMode {
             intake.setPower(1);
             indexer.setPower(0);
             if(auto){
-                setLaunchRPM(autoPower);
+                power = autoPower;
+                setLaunchRPM(power);
             }
 
             while (opModeIsActive()) {
@@ -1028,9 +1030,7 @@ public class robot extends LinearOpMode {
                     } else {
                         launcherAngleVelocity();
                     }
-                    if (gamepad2.left_bumper){
-                        teleopPower = 5000;
-                    }
+
                     power = teleopPower;
                     setLaunchRPM(power);
                     setTurretPosition(targetTurretAngle);
@@ -1038,7 +1038,7 @@ public class robot extends LinearOpMode {
                     robot.PARAMS.localizerX = drive.localizer.getPose().position.x;
                     robot.PARAMS.localizerY = drive.localizer.getPose().position.y;
                 }
-                boolean toSpeed = abs(abs(power) - abs(getLaunchRPM())) < 100;
+                boolean toSpeed = abs(abs(power) - abs(getLaunchRPM())) < 200;
 
                // colorLogger();
                 if(toSpeed&&!launchStarted) {
@@ -1086,6 +1086,7 @@ public class robot extends LinearOpMode {
                     }
                     //TELEOP
                     if (toSpeed && time.now(TimeUnit.SECONDS) - timer < startTime + normalRunTime) {
+                        intake.setPower(1);
                         indexer.setPower(teleopIndexPower);
 
                     } else if (time.now(TimeUnit.SECONDS) - timer > 10 && time.now(TimeUnit.SECONDS) - timer < 12) {
@@ -1100,10 +1101,14 @@ public class robot extends LinearOpMode {
                         setLaunchRPM(0);
                         break;
                     }else if (time.now(TimeUnit.SECONDS) - timer < startTime + normalRunTime && !toSpeed){
-                        //indexer.setPower(0);
+                        indexer.setPower(0);
+                        intake.setPower(0);
                     }
                 }else{
                     //AUTO
+                    drive.localizer.setPose(updatePoseFromLimeLight());
+                    updateTurretTracking(isRedAlliance);
+                    setTurretPosition(targetTurretAngle);
                     if (toSpeed && time.now(TimeUnit.SECONDS) - timer < startTime + autoRunTime) {
                         indexer.setPower(autoIndexPower);
                     } else if (time.now(TimeUnit.SECONDS) - timer > 10 && time.now(TimeUnit.SECONDS) - timer < 12) {
@@ -1117,8 +1122,10 @@ public class robot extends LinearOpMode {
                 }
                 TelemetryPacket packet = new TelemetryPacket();
                 packet.fieldOverlay().setStroke("#3F51B5");
+                packet.clearLines();
                 packet.put("To speed:", toSpeed);
                 packet.put("launchRPM", getLaunchRPM());
+                packet.put("targetRPM", power);
                 packet.put("time", time.now(TimeUnit.SECONDS) - timer);
                 packet.put("Running w/ index and intake:", toSpeed && time.now(TimeUnit.SECONDS) - timer < startTime + normalRunTime);
                 packet.put("Running w/ index and intake:", !toSpeed && time.now(TimeUnit.SECONDS) - timer < startTime + normalRunTime);

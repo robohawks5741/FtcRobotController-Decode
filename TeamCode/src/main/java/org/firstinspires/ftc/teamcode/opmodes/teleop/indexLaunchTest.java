@@ -264,7 +264,7 @@ public class indexLaunchTest extends robot {
                 } else {indexer.setPower(0);}
             }else {
                 launcherAngleVelocity();
-                hood.setPosition(hoodPosition);
+                //hood.setPosition(hoodPosition);
             }
             if (gamepad2.right_trigger >0 && gamepad2.left_trigger < 0.1) {
                 setIntakePower(1);
