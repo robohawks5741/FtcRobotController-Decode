@@ -10,6 +10,10 @@ import com.acmerobotics.roadrunner.Vector2d;
 @Config
 public class RobotConstants {
     @Config
+    public static class LLTEST {
+        public static boolean COMPLEX = false;
+    }
+    @Config
     public static class TurretPID {
         public static double kP = 16.8;
         public static double kI = 0.21;
@@ -25,8 +29,7 @@ public class RobotConstants {
         public static double kI = 0.00000000000000001;
         public static double kD = 0.00000003;
         public static double kD_loaded = 0.00000003;
-        public static double kD_unloaded = 0.00000002;
-    }
+        public static double kD_unloaded = 0.000000025;}
     @Config
     public static class LauncherPID {
         public static double kP = 22;
@@ -53,14 +56,20 @@ public class RobotConstants {
     }
     @Config
     public static class LauncherCalibration {
-        public static double launcherM = 12.25;    // RPM per inch slope
-        public static double launcherB = 1500;      // RPM minimum (y-intercept)
+        public static double launcherA = 0.09;    // RPM per inch slope
+        public static double launcherB = 44;//X translation (for math)
+        public static double launcherC = 950; // RPM minimum (y-intercept)
         public static double hoodM = 0.7 / 145.0;  // hood position per inch slope
-        public static double hoodB = 0.25;          // hood minimum position
-        public static double hoodMin = 0.25;
+        public static double hoodB = 0.14;          // hood minimum position
+        public static double hoodMin = 0;
         public static double hoodMax = 0.95;
         public static int teleopPower = 4000;       // RPM for teleop
-        public static int autoPower = 2150;          // RPM for auto
+        public static int autoPower = 1200;          // RPM for auto
+        public static double teleOpIndexPower = 0.3;
+        public static double autoIndexPower = 1;
+        public static double normalRunIndexTime = 4;
+        public static double autoRunIndexTime = 1.9;
+        public static double shortRunIndexTime = 0.7;
     }
     @Config
     public static class StartPositions {
@@ -70,16 +79,18 @@ public class RobotConstants {
     }
     @Config
     public static class AutoPaths {
-        public static double targetX = -53;
+        public static double targetX = -44;
         public static double targetY = 25;
         public static double row1X = 34.5;
-        public static double row1Y = 68;
-        public static double row2X = 10;
-        public static double row2Y = 69;
-        public static double row3X = -13;
-        public static double row3Y = 62;
+        public static double row1Y = 60;
+        public static double row2X = 18;
+        public static double row2Y = 64;
+        public static double row3X = -8;
+        public static double row3Y = 56;
         public static double backToY = 25;
         public static double targetHeading = 110;
+        public static double parkX = 38;
+        public static double parkY = -32;
     }
     @Config
     public static class IndexPositions {
@@ -100,9 +111,13 @@ public class RobotConstants {
         public static double conversionRatio = 39.3701;  // meters to inches
         public static double llTurretRadius = 6;          // inches
         public static double ticksPerRev = 384.5;
-        public static double turretRadiusAtLimeLight = 5; //Inches
-        public static double turretCenterToRobotCenter = 2; //Inches
-        public static double ticksPerDegree = 1.068;
+        public static double turretRadiusAtLimeLight = 6.25; //Inches
+        public static double turretCenterToRobotCenter = 3; //Inches
+        public static double ticksPerDegree = 1.0680555;
         public static double turretRatio = 4;
+        public static double checkInterval = 0.2;
+        public static double distTolerance = 20;
+        public static double tickUpdateMaxTicks = 8;
+        public static double tickUpdateHeadingMaxTicks = 15;
     }
 }

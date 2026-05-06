@@ -9,6 +9,7 @@ import com.acmerobotics.roadrunner.ftc.Actions;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 
+import org.firstinspires.ftc.teamcode.RobotConstants;
 import org.firstinspires.ftc.teamcode.robot;
 import org.firstinspires.ftc.teamcode.util.PID;
 import org.firstinspires.ftc.teamcode.subsystems.MecanumDrive;
@@ -18,6 +19,7 @@ public class AutoBackBlue extends robot {
     public static class Params {
 
     }
+
     public static Params PARAMS = new Params();
 
     //CRServo turret1;
@@ -25,18 +27,19 @@ public class AutoBackBlue extends robot {
     PID pid;
     Limelight3A limelight;
     boolean redOverride = false;
-  /*  public class turretTrack implements Action {
-        @Override
-        public boolean run(@NonNull TelemetryPacket telemetryPacket) {
-            while (opModeIsActive()) {
-                turret2.setPower(-pid.PIDControl(PARAMS.Kp, PARAMS.Ki, PARAMS.Kd, 0.0, limelight.getLatestResult().getTx()));
-                if (abs(limelight.getLatestResult().getTx()) < 2) {
-                    break;
-                }
-            }
-            return false;
-        }
-    }*/
+
+    /*  public class turretTrack implements Action {
+          @Override
+          public boolean run(@NonNull TelemetryPacket telemetryPacket) {
+              while (opModeIsActive()) {
+                  turret2.setPower(-pid.PIDControl(PARAMS.Kp, PARAMS.Ki, PARAMS.Kd, 0.0, limelight.getLatestResult().getTx()));
+                  if (abs(limelight.getLatestResult().getTx()) < 2) {
+                      break;
+                  }
+              }
+              return false;
+          }
+      }*/
     @Override
     public void runOpMode() throws InterruptedException {
         boolean waiting = true;
@@ -48,10 +51,10 @@ public class AutoBackBlue extends robot {
         //super.runOpMode();
         //Pose2d beginPose = new Pose2d(robot.PARAMS.beginPosX, robot.PARAMS.beginPosY, Math.toRadians(180));
         teleOpBeginPose = beginPos;
-       // AprilTag aprilTag = new AprilTag("Webcam 1", hardwareMap);
+        // AprilTag aprilTag = new AprilTag("Webcam 1", hardwareMap);
         boolean beginPoseFound = true;
-     //   aprilTag.getDetectedTags().;
-       // limelight.pipelineSwitch(1);
+        //   aprilTag.getDetectedTags().;
+        // limelight.pipelineSwitch(1);
         while (!beginPoseFound && opModeInInit()) {
             if (result.isValid()) {
                 //beginPos = new Pose2d(new Vector2d(result.getBotpose().getPosition().x, result.getBotpose().getPosition().y), result.getBotpose().getOrientation().getYaw());
@@ -64,19 +67,19 @@ public class AutoBackBlue extends robot {
             }
 
         }
-       // limelight.pipelineSwitch(0);
+        // limelight.pipelineSwitch(0);
         telemetry.update();
 
         //MecanumDrive drive = new MecanumDrive(hardwareMap, beginPos);
         //drive.defaultAccelConstraint.
         //PinpointLocalizer pinpoint = new PinpointLocalizer(hardwareMap, 0.0007669904, beginPose);
-        
+
         waitForStart();
         if (opModeIsActive()) {
             if (isStopRequested()) return;
             telemetry.addData("Status: ", "Running");
             autoPower = 2150;
-            setLaunchRPM(autoPower);
+            setLaunchRPM(RobotConstants.LauncherCalibration.autoPower);
             hood.setPosition(0.25);
             drive.localizer.setPose(beginPos);
           /*  Actions.runBlocking(
@@ -88,7 +91,7 @@ public class AutoBackBlue extends robot {
             );*/
             drive.localizer.update();
             //drive.localizer.getPose();
-           // hood.setPosition(0.0);
+            // hood.setPosition(0.0);
             double time = 0;
             //power = 4000;
             Actions.runBlocking(new SequentialAction(
@@ -99,26 +102,12 @@ public class AutoBackBlue extends robot {
                     new rowSelectAuto(3),
                     new newLaunchCycle(true, false),
                     new sendAutoEndPose()
-                   // new rowSelectAuto(4)
+                    // new rowSelectAuto(4)
                    /* new rowSelectAuto(3),
                     new newLaunchCycle(true)*/
 
-                ));
-            }else {
-                Actions.runBlocking(new SequentialAction(
-                        new rowSelectAuto(4),
-                        new newLaunchCycle(true, false),
-                        new rowSelectAuto(2),
-                        new newLaunchCycle(true, false),
-                        new rowSelectAuto(3),
-                        new newLaunchCycle(true, false),
-                        new sendAutoEndPose()
-                        // new rowSelectAuto(4)
-                   /* new rowSelectAuto(3),
-                    new newLaunchCycle(true)*/
-
-                ));
-            }
+            ));
+            stop();
             if (isStopRequested()) {
                 new sendAutoEndPose();
             }
@@ -139,4 +128,4 @@ public class AutoBackBlue extends robot {
             }
         }
     }
-
+}
