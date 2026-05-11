@@ -73,7 +73,9 @@ public class RacecarMode extends LinearOpMode {
         public static double speed = 0.0;
     }
 
-    public static String progressBar(int length, double percent) {
+    public static double steeringMultiplier = 0.9;
+
+    public static String speedIndicator(int length, double percent) {
         if (length <= 0) return "";
 
         percent = Math.max(0, Math.min(100, percent));
@@ -116,6 +118,93 @@ public class RacecarMode extends LinearOpMode {
         return bar.toString();
     }
 
+    public static String steeringIndicator(int length, double percent) {
+        if (length <= 0) return "";
+
+        // Clamp to -100% through 100%
+        percent = Math.max(-100, Math.min(100, percent));
+
+        String[] partials = {
+                "",   // 0/8
+                "▏", // 1/8
+                "▎", // 2/8
+                "▍", // 3/8
+                "▌", // 4/8
+                "▋", // 5/8
+                "▊", // 6/8
+                "▉"  // 7/8
+        };
+
+        char[] bar = new char[length];
+        for (int i = 0; i < length; i++) {
+            bar[i] = ' ';
+        }
+
+        int middle = length / 2;
+
+        if (percent > 0) {
+            // Fill to the right from the middle
+            int rightLength = length - middle;
+            double filled = rightLength * (percent / 100.0);
+
+            int fullBlocks = (int) filled;
+            int partialIndex = (int) Math.round((filled - fullBlocks) * 8);
+
+            if (partialIndex == 8) {
+                fullBlocks++;
+                partialIndex = 0;
+            }
+
+            for (int i = 0; i < fullBlocks && middle + i < length; i++) {
+                bar[middle + i] = '█';
+            }
+
+            StringBuilder result = new StringBuilder(new String(bar));
+
+            if (middle + fullBlocks < length && partialIndex > 0) {
+                result.replace(
+                        middle + fullBlocks,
+                        middle + fullBlocks + 1,
+                        partials[partialIndex]
+                );
+            }
+
+            return result.toString();
+        }
+
+        if (percent < 0) {
+            // Fill to the left from the middle
+            int leftLength = middle;
+            double filled = leftLength * (-percent / 100.0);
+
+            int fullBlocks = (int) filled;
+            int partialIndex = (int) Math.round((filled - fullBlocks) * 8);
+
+            if (partialIndex == 8) {
+                fullBlocks++;
+                partialIndex = 0;
+            }
+
+            for (int i = 0; i < fullBlocks && middle - 1 - i >= 0; i++) {
+                bar[middle - 1 - i] = '█';
+            }
+
+            StringBuilder result = new StringBuilder(new String(bar));
+
+            if (middle - 1 - fullBlocks >= 0 && partialIndex > 0) {
+                result.replace(
+                        middle - 1 - fullBlocks,
+                        middle - fullBlocks,
+                        partials[partialIndex]
+                );
+            }
+
+            return result.toString();
+        }
+
+        return new String(bar);
+    }
+
     @Override
     public void runOpMode() {
         backLeftMotor = hardwareMap.get(DcMotorEx.class, "backLeft");
@@ -138,11 +227,21 @@ public class RacecarMode extends LinearOpMode {
             }
 
             switch (drivingMode) {
-                case 1:
+                case 1: // normal driving
                     telemetry.addData("Driving Mode", "Normal");
                     telemetry.addLine("Controls: Left stick Y for forward/back, right stick X for steering");
                     break;
+                case 2: // racing mode
+                    telemetry.addData("Driving Mode", "Racing");
+                    telemetry.addLine("Controls: Right stick X for steering, left trigger for gas pedal, right trigger for brake pedal");
+                    break;
+                case 3: // electric mode
+                    telemetry.addData("Driving Mode", "Electric");
+                    telemetry.addLine("Controls: Right stick X for steering, left trigger for throttle, right trigger for brake/reverse");
+                    break;
             }
+
+            telemetry.addLine();
 
             double dt = timer.seconds();
             timer.reset();
@@ -150,33 +249,35 @@ public class RacecarMode extends LinearOpMode {
             double throttle = gamepad1.left_trigger;  // accelerator
             double brake = gamepad1.right_trigger;    // brake
             double rawSteer = gamepad1.right_stick_x;
+            double steer, speedRatio, steerLimit, servoPosition;
 
             switch (drivingMode) {
                 case 1: // normal driving
                     backLeftMotor.setPower(gamepad1.left_stick_y);
                     backRightMotor.setPower(gamepad1.left_stick_y);
-                    steeringServo.setPosition(gamepad1.right_stick_x);
+                    steeringServo.setPosition(gamepad1.right_stick_x * steeringMultiplier);
+
+                    telemetry.addData("Speed", speedIndicator(10, Math.abs(gamepad1.left_stick_y) * 100));
+                    telemetry.addData("Steering", steeringIndicator(20, (gamepad1.right_stick_x * 100)));
                     break;
 
                 case 2: // racing mode
                     double gas = throttle;    // 0.0 to 1.0
 
-                    // Optional: make throttle less twitchy near the start
                     gas = gas * gas;
                     brake = brake * brake;
 
-                    // Acceleration / braking model
                     if (gas > 0.02) {
                         RacingMode.speed += gas * RacingMode.accelRate * dt;
                     } else if (brake > 0.02) {
                         if (RacingMode.speed > 0) {
                             RacingMode.speed -= brake * RacingMode.brakeRate * dt;
                         } else {
-                            // Reverse after stopping
+                            // reverse after stopping
                             RacingMode.speed -= brake * RacingMode.accelRate * 0.6 * dt;
                         }
                     } else {
-                        // Coasting drag
+                        // coasting drag
                         if (RacingMode.speed > 0) {
                             RacingMode.speed -= (RacingMode.coastDrag * Math.abs(RacingMode.speed) + RacingMode.rollingDrag) * dt;
                             if (RacingMode.speed < 0) RacingMode.speed = 0;
@@ -186,68 +287,66 @@ public class RacecarMode extends LinearOpMode {
                         }
                     }
 
-                    // Clamp speed
+                    // clamp speed
                     RacingMode.speed = Math.max(RacingMode.maxReversePower, Math.min(RacingMode.maxForwardPower, RacingMode.speed));
 
-                    // Send simulated speed to drive motors
+                    // send simulated speed to drive motors
                     backLeftMotor.setPower(RacingMode.speed);
                     backRightMotor.setPower(RacingMode.speed);
 
+                    telemetry.addData("Speed", speedIndicator(10, RacingMode.speed * 100));
+
                     rawSteer = gamepad1.right_stick_x;
 
-                    // Expo steering: smoother near center, still allows full steering
-                    double steer = Math.signum(rawSteer) * Math.pow(Math.abs(rawSteer), RacingMode.steeringExpo);
+                    // expo steering: smoother near center, still allows full steering
+                    steer = Math.signum(rawSteer) * Math.pow(Math.abs(rawSteer), RacingMode.steeringExpo);
 
-                    // Reduce steering at higher speed
-                    double speedRatio = Math.abs(RacingMode.speed); // 0 to 1
-                    double steerLimit = RacingMode.maxSteer - (RacingMode.maxSteer - RacingMode.minSteer) * speedRatio;
+                    // reduce steering at higher speed
+                    speedRatio = Math.abs(RacingMode.speed); // 0 to 1
+                    steerLimit = RacingMode.maxSteer - (RacingMode.maxSteer - RacingMode.minSteer) * speedRatio;
 
                     steer *= steerLimit;
 
-                    // Convert -1..1 steering to servo position 0..1
+                    // convert -1..1 steering to servo position 0..1
                     double servoCenter = 0.5;
                     double servoRange = 0.35; // tune this so it doesn't oversteer mechanically
 
-                    double servoPosition = servoCenter + steer * servoRange;
-                    servoPosition = Math.max(0.0, Math.min(1.0, servoPosition));
+                    servoPosition = servoCenter + steer * servoRange;
+                    servoPosition = Math.max(0.0, Math.min(1.0, servoPosition * steeringMultiplier));
 
                     steeringServo.setPosition(servoPosition);
+
+                    telemetry.addData("Steering", steeringIndicator(20, (Math.min((servoPosition + 0.5), 1) * 100)));
                     break;
                 case 3: // electric car mode
-
-
-                    // Optional EV throttle curve.
-                    // EVs usually feel responsive, so don't square it too aggressively.
+                    // optional EV throttle curve.
+                    // EVs usually feel responsive, so don't square it too aggressively
                     throttle = Math.pow(throttle, 1.4);
                     brake = brake * brake;
 
-                    // -----------------------------
-                    // EV SPEED / TORQUE SIMULATION
-                    // -----------------------------
-
                     if (throttle > 0.02) {
-                        // Instant-feeling EV torque.
-                        // Acceleration tapers slightly as speed gets higher.
+                        // instant-feeling EV torque
+                        // acceleration tapers slightly as speed gets higher
                         double speedFactor = 1.0 - 0.35 * Math.abs(ElectricMode.speed);
 
                         if (ElectricMode.speed >= 0) {
                             ElectricMode.speed += throttle * ElectricMode.accelRate * speedFactor * dt;
                         } else {
-                            // If rolling backward, throttle first slows you down.
+                            // if rolling backward, throttle first slows you down
                             ElectricMode.speed += throttle * ElectricMode.brakeRate * dt;
                         }
 
                     } else if (brake > 0.02) {
                         if (ElectricMode.speed > ElectricMode.brakeToReverseDelay) {
-                            // Normal brake while moving forward
+                            // normal brake while moving forward
                             ElectricMode.speed -= brake * ElectricMode.brakeRate * dt;
                         } else {
-                            // Once nearly stopped, brake becomes reverse
+                            // once nearly stopped, brake becomes reverse
                             ElectricMode.speed -= brake * ElectricMode.reverseAccelRate * dt;
                         }
 
                     } else {
-                        // Regenerative braking when neither pedal is pressed.
+                        // regenerative braking when neither pedal is pressed
                         if (Math.abs(ElectricMode.speed) > ElectricMode.regenDeadband) {
                             double regenAmount = ElectricMode.regenStrength * Math.min(Math.abs(ElectricMode.speed), ElectricMode.maxRegenAtSpeed);
 
@@ -260,7 +359,7 @@ public class RacecarMode extends LinearOpMode {
                             }
                         }
 
-                        // Tiny rolling drag after regen
+                        // tiny rolling drag after regen
                         if (ElectricMode.speed > 0) {
                             ElectricMode.speed -= ElectricMode.rollingDrag * dt;
                             if (ElectricMode.speed < 0) ElectricMode.speed = 0;
@@ -270,33 +369,29 @@ public class RacecarMode extends LinearOpMode {
                         }
                     }
 
-                    // Clamp speed
+                    // clamp speed
                     ElectricMode.speed = Math.max(ElectricMode.maxReversePower, Math.min(ElectricMode.maxForwardPower, ElectricMode.speed));
-
-                    // -----------------------------
-                    // STEERING SIMULATION
-                    // -----------------------------
 
                     steer = Math.signum(rawSteer) * Math.pow(Math.abs(rawSteer), ElectricMode.steeringExpo);
 
-                    // Reduce steering authority at high speed
+                    // reduce steering authority at high speed
                     speedRatio = Math.abs(ElectricMode.speed);
                     steerLimit = ElectricMode.maxSteer - (ElectricMode.maxSteer - ElectricMode.minSteer) * speedRatio;
                     steer *= steerLimit;
 
                     servoPosition = ElectricMode.servoCenter + steer * ElectricMode.servoRange;
-                    servoPosition = Math.max(0.0, Math.min(1.0, servoPosition));
-
-                    // -----------------------------
-                    // OUTPUT
-                    // -----------------------------
+                    servoPosition = Math.max(0.0, Math.min(1.0, servoPosition * steeringMultiplier));
 
                     backLeftMotor.setPower(ElectricMode.speed);
                     backRightMotor.setPower(ElectricMode.speed);
                     steeringServo.setPosition(servoPosition);
+
+                    telemetry.addData("Speed        ", speedIndicator(10, ElectricMode.speed * 100));
+                    telemetry.addData("Steering", steeringIndicator(20, (Math.min((servoPosition + 0.5), 1) * 100)));
+                    break;
             }
 
-            //telemetry.addData("Throttle", progressBar(10, Math.abs(gamepad1.left_stick_y) * 100));
+            telemetry.update();
         }
     }
 }
